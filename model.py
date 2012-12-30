@@ -23,7 +23,6 @@ class User(db.Model):
     picture_url = db.Column(db.Text)
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
-    quotes = db.relationship('Quote', backref = 'user', lazy = 'dynamic') # TODO (mom) how the fuck is this supposed to work?
     quotes_echoed = db.relationship('Echo', backref = 'user')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
@@ -71,6 +70,8 @@ class Quote(db.Model):
     deleted = db.Column(db.Boolean)
     comments = db.relationship('Comment', backref = 'quote', lazy = 'dynamic')
     echoes = db.relationship('Echo', backref = 'quote', lazy = 'dynamic')
+    source = db.relationship('User', backref = 'quotes_sourced', foreign_keys = [source_id])
+    reporter = db.relationship('User', backref = 'quotes_reported', foreign_keys = [reporter_id])
 
     def __init__(self, source_id, reporter_id, content = None, location = None, deleted = False):
         self.source_id = source_id
@@ -92,7 +93,6 @@ class Echo(db.Model):
     modified = db.Column(db.DateTime)
     quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'), primary_key = True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key = True)
-    quote = db.relationship('Quote', backref = 'user_assoc')
     def __init__(self, quote_id, user_id):
         self.quote_id = quote_id
         self.user_id = user_id
