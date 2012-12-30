@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request
 from model import db
-from model import User # TODO (mom) import one by one? or all at once
+from model import User, Quote, Echo, Comment
 import json
 
 #----------------------------------------
@@ -77,14 +77,21 @@ def add_quote():
     location = qdata['location']
     content = qdata['quote']
 
-    source = User.query.filter_by(fbid = sourceFbid).first() # TODO (mom) handle case when none is found
-    reporter = User.query.filter_by(fbid = reporterFbid).first() # TODO (mom) same
+    source = User.query.filter_by(fbid = sourceFbid).first()
+    reporter = User.query.filter_by(fbid = reporterFbid).first()
+
+    if not source:
+        return 'source with fbid %r not found' % sourceFbid
+    if not reporter:
+        return 'reporter with fbid %r not found' % reporterFbid
 
     quote = Quote(source.id, reporter.id, content, location, False)
-
     db.session.add(quote)
+    print 'db commit quote'
+    db.session.commit()
+    print 'db commited!'
 
-    return 'quote added maybe? still need to commit'
+    return 'quote added maybe?' 
 
 
 #----------------------------------------
