@@ -3,6 +3,8 @@ from flask import Flask, request
 from model import db
 from model import User, Quote, Echo, Comment
 import json
+from sqlalchemy import or_
+import time
 
 #----------------------------------------
 # initialization
@@ -35,15 +37,14 @@ def add_user():
     fbid = udata['id']
     print 'fbid = ' + fbid
     friends_raw = udata['friends']
-
     name = udata['name']
     names = name.split(" ")
     first_name = names[0]
     last_name = names[len(names) - 1]
-
     print 'name = ' + name
 
-    # TODO (mom/rishi) add picture URL and load picture in background thread
+    # TODO (mom) add picture URL and load picture in background thread
+    # same with friends (note that picture url is already sent)
     user = User(fbid, udata['email'], first_name, last_name, None, None, True)
 
     if User.query.filter_by(fbid = fbid).first():
@@ -92,6 +93,56 @@ def add_quote():
     print 'db commited!'
 
     return 'quote added maybe?' 
+
+
+@app.route("/get_quotes", methods = ['get'])
+def get_quotes():
+    fbid = request.args.get('fbid')
+    user = User.query.filter_by(fbid = fbid).first()
+    if not user:
+        return 'User NOT signed up'
+
+    #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
+    #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id))
+   
+    print 'fetching quotes for ids'
+
+    ids = [friend.id for friend in user.friends]
+    ids.append(user.id)
+    quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids))).all()
+
+    print 'fetched %d quotes' % len(quotes)
+
+    result = []
+    for quote in quotes:
+        # TODO (mom/rishi) coordinate field type and naming convention
+        quote_res = dict()
+        quote_res['_id'] = str(quote.id)
+        quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
+        quote_res['sourceFbid'] = quote.source.fbid
+        quote_res['reporterFbid'] = quote.reporter.fbid
+        quote_res['location'] = quote.location
+        quote_res['quote'] = quote.content
+        result.append(quote_res)
+
+    #quotes = db.quotes.find({'$or' : or_conds})
+    #result = []
+    #for quote in quotes:
+    #    quote['_id'] = str(quote['_id']) # doesn't jsonify
+    #    quote['timestamp'] = time.mktime(quote['timestamp'].timetuple()) # doesn't jsonify; not need it -- encoded in _id
+    #    if not quote.has_key('location') or quote['location'] == '':
+    #        quote['location'] = locations[random.randint(0, len(locations) - 1)]
+    #del quote['reporterId']
+    #del quote['sourceId']
+    #result.append(quote)
+
+    sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True)
+    print sorted_result
+    try:
+        dump = json.dumps(sorted_result)
+        return dump
+    except:
+        return "fail... couldn't json dump"
 
 
 #----------------------------------------
