@@ -35,7 +35,7 @@ def hello():
 def add_user():
     udata = json.loads(request.form['data']) # AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     fbid = udata['id']
-    print 'fbid = ' + fbid
+    # print 'fbid = ' + fbid #: can't concatenate str and int
     friends_raw = udata['friends']
     name = udata['name']
     names = name.split(" ")
