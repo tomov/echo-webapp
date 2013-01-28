@@ -117,4 +117,3 @@ class Comment(db.Model):
     def __repr__(self):
         return '<Comment %r>' % self.content
 
-

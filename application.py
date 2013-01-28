@@ -17,7 +17,7 @@ app.config.update(
     DEBUG = True,  # TODO (mom) remove before deploying
 )
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1ame3lqpnmuv0.clozqiwggjtt.us-east-1.rds.amazonaws.com/echo_webapp'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1goqo28weo00e.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp'
 
 db.init_app(app)
 
@@ -27,7 +27,7 @@ db.init_app(app)
 
 @app.route("/")
 def hello():
-    return "Hello from Python!"
+    return "Hello from Python yay!"
 
 
 # TODO (mom) make secure (API keys?)
@@ -98,6 +98,9 @@ def add_quote():
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
     fbid = request.args.get('fbid')
+
+    print 'start getting quotes for ' + fbid
+
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
         return 'User NOT signed up'
@@ -124,17 +127,6 @@ def get_quotes():
         quote_res['location'] = quote.location
         quote_res['quote'] = quote.content
         result.append(quote_res)
-
-    #quotes = db.quotes.find({'$or' : or_conds})
-    #result = []
-    #for quote in quotes:
-    #    quote['_id'] = str(quote['_id']) # doesn't jsonify
-    #    quote['timestamp'] = time.mktime(quote['timestamp'].timetuple()) # doesn't jsonify; not need it -- encoded in _id
-    #    if not quote.has_key('location') or quote['location'] == '':
-    #        quote['location'] = locations[random.randint(0, len(locations) - 1)]
-    #del quote['reporterId']
-    #del quote['sourceId']
-    #result.append(quote)
 
     sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True)
     print sorted_result
