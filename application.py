@@ -17,7 +17,7 @@ app.config.update(
     DEBUG = True,  # TODO (mom) remove before deploying
 )
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1goqo28weo00e.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp'
 
 db.init_app(app)
 
