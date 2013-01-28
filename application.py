@@ -27,7 +27,6 @@ db.init_app(app)
 
 @app.route("/")
 def hello():
-    db.create_all()
     return "Hello from Python yay!"
 
 
