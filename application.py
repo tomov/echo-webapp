@@ -29,40 +29,67 @@ db.init_app(app)
 def hello():
     return "Hello from Python yay!"
 
+# TODO (mom) add to utils.py
+# TODO (mom) add unit tests
+def split_name(name):
+    names = name.split(" ")
+    if len(names) == 0:
+        return "", ""
+    if len(names) == 1:
+        return names[0], ""
+    return names[0], names[len(names) - 1]
+
+
+def add_friends(user, friends_raw):
+    for friend_raw in friends_raw:
+        friend_fbid = friend_raw['id']
+        friend_first, friend_last = split_name(friend_raw['name'])
+        friend_picture_url = friend_raw['picture']['data']['url']
+        friend = User.query.filter_by(fbid = friend_fbid).first()
+        if not friend:
+            friend = User(friend_fbid, None, friend_first, friend_last, friend_picture_url,  None, False)
+            db.session.add(friend)
+        user.friends.append(friend) # no worries, it's stored by reference in new_users_list
+
 
 # TODO (mom) make secure (API keys?)
 @app.route("/add_user", methods = ['POST'])
 def add_user():
     udata = json.loads(request.form['data']) # AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     fbid = udata['id']
-    # print 'fbid = ' + fbid #: can't concatenate str and int
+    first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
-    name = udata['name']
-    names = name.split(" ")
-    first_name = names[0]
-    last_name = names[len(names) - 1]
-    print 'name = ' + name
 
-    # TODO (mom) add picture URL and load picture in background thread
-    # same with friends (note that picture url is already sent)
-    user = User(fbid, udata['email'], first_name, last_name, None, None, True)
+    print 'CALL ADD USER WITH name = ' + name
+    print json.dumps(udata)
 
-    if User.query.filter_by(fbid = fbid).first():
-        return 'user already exists' # TODO (mom) update friend list in this case -- http://stackoverflow.com/questions/6611563/sqlalchemy-on-duplicate-key-update
+    user = User.query.filter_by(fbid = fbid).first()
+    if not user:
+        # user does not exist -- create one
+        print "USER DOES NOT EXIST ==> CREATE ONE!"
 
-    # TODO (mom) do this in separate thread http://stackoverflow.com/questions/2882308/spawning-a-thread-in-python
-    # or even better -- use Amazon SQS ?
-    for friend_raw in friends_raw:
-        friend_fbid = friend_raw['id']
-        print friend_fbid + ' <---- fbid one'
-        friend = User.query.filter_by(fbid = friend_fbid).first()
-        if not friend:
-            friend = User(friend_fbid)
-            db.session.add(friend)
-        user.friends.append(friend) # no worries, it's stored by reference in new_users_list
+        # TODO (mom) add picture URL
+        # same with friends (note that picture url is already sent)
+        user = User(fbid, udata['email'], first_name, last_name, None, None, True)
 
-    print ' db session add'
-    db.session.add(user)
+        # TODO (mom) do this in separate thread http://stackoverflow.com/questions/2882308/spawning-a-thread-in-python
+        add_friends(user, friends_raw)
+
+        # or even better -- use Amazon SQS ?
+        print ' db session add'
+        db.session.add(user)
+
+    elif user.registered == False:
+        print "USER EXISTS BUT NOT REGISTERED -- REGISTER HER!"
+
+        user.registered = True
+        add_friends(user, friends_raw) # TODO sep thread?
+
+        # TODO (mom) update friend list as well -- http://stackoverflow.com/questions/6611563/sqlalchemy-on-duplicate-key-update
+    else:
+        print "USER REGISTERED -- ABORT"
+        return "user already registered"
+
     print ' db session commit'
     db.session.commit()
     print ' db done!'
