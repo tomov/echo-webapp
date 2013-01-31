@@ -45,6 +45,9 @@ def add_friends(user, friends_raw):
         friend_fbid = friend_raw['id']
         friend_first, friend_last = split_name(friend_raw['name'])
         friend_picture_url = friend_raw['picture']['data']['url']
+
+        print 'add friend ' + friend_first + ' ' + friend_last + ' fbid = ' + friend_fbid
+
         friend = User.query.filter_by(fbid = friend_fbid).first()
         if not friend:
             friend = User(friend_fbid, None, friend_first, friend_last, friend_picture_url,  None, False)
@@ -60,7 +63,7 @@ def add_user():
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
 
-    print 'CALL ADD USER WITH name = ' + name
+    print 'CALL ADD USER WITH name = ' + first_name + ' ' + last_name
     print json.dumps(udata)
 
     user = User.query.filter_by(fbid = fbid).first()
