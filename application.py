@@ -5,6 +5,7 @@ from model import User, Quote, Echo, Comment
 import json
 from sqlalchemy import or_
 import time
+from model import create_db
 
 #----------------------------------------
 # initialization
@@ -17,7 +18,7 @@ app.config.update(
     DEBUG = True,  # TODO (mom) remove before deploying
 )
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp?init_command=set%20character%20set%20utf8'
 
 db.init_app(app)
 
@@ -32,7 +33,7 @@ def hello():
 # TODO (mom) add to utils.py
 # TODO (mom) add unit tests
 def split_name(name):
-    names = name.split(" ")
+    names = name.encode('utf-8').split(" ")
     if len(names) == 0:
         return "", ""
     if len(names) == 1:
@@ -46,7 +47,7 @@ def add_friends(user, friends_raw):
         friend_first, friend_last = split_name(friend_raw['name'])
         friend_picture_url = friend_raw['picture']['data']['url']
 
-        print 'add friend ' + friend_first + ' ' + friend_last + ' fbid = ' + friend_fbid
+        #print 'add friend ' + friend_first + ' ' + friend_last + ' fbid = ' + friend_fbid
 
         friend = User.query.filter_by(fbid = friend_fbid).first()
         if not friend:
@@ -63,7 +64,7 @@ def add_user():
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
 
-    print 'CALL ADD USER WITH name = ' + first_name + ' ' + last_name
+    #print 'CALL ADD USER WITH name = ' + first_name + ' ' + last_name
     print json.dumps(udata)
 
     user = User.query.filter_by(fbid = fbid).first()
