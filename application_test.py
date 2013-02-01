@@ -1,12 +1,18 @@
 import os
-import application
 import unittest
 import tempfile
+import json
+from flask.ext.sqlalchemy import SQLAlchemy
+
+import application
+import model
 from model import db
 from model import User, Quote, Echo, Comment
-import json
+from constants import *
+from test_data import *
 
-from flask.ext.sqlalchemy import SQLAlchemy
+TEST_DATABASE_NAME = 'echo_webapp_test'
+TEST_DATABASE_URI = model.DATABASE_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
 
 #: these lines will be used throughout for debugging purposes
 print '===> _before: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
@@ -22,20 +28,21 @@ class ApplicationTestCase(unittest.TestCase):
         application.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + application.app.config['DATABASE']
         '''
 
-        application.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db' #: use sqlite db for testing
+        application.app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
 
         print '===> setup: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
 
         db.app = application.app
-        db.create_all() #: initialize all tables
-
         self.app = application.app.test_client()
+
+        db.create_all() #: initialize all tables
 
     def tearDown(self): #: called after the test is run (close shit)
         # os.close(self.db_fd)
         # os.unlink(application.app.config['DATABASE'])
         
-        db.drop_all(app=application.app) #: get rid of tables
+        db.session.remove() # REALLY IMPORTANT to do this before the one below, otherwise can't run more than one test
+        db.drop_all() #: get rid of tables
 
         print '===> teardown: end'
 
@@ -74,7 +81,28 @@ class ApplicationTestCase(unittest.TestCase):
 # ----------------------------------------------------------------------
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
+   
+    def test_register(self):
+        print "\n------- begin single test -------\n"
 
+        assert len(User.query.all()) == 0
+        george_dump = json.dumps(RandomUsers.george)
+        rv = self.app.post('/add_user', data = dict(data=george_dump))
+        assert len(User.query.all()) == 1
+
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert user
+        
+         
+        #: make sure name was split correctly. TODO: how does app handle multiple names?
+        assert find_user.first_name == 'User'
+        assert find_user.last_name == 'Four'
+        
+ 
+
+        print "\n-------- end single test --------\n"
+
+'''
     def test_empty_db(self):
         print '===> test_empty_db: start'
 
@@ -84,7 +112,7 @@ class ApplicationTestCase(unittest.TestCase):
         assert len(Comment.query.all()) == 0
 
         print '===> test_empty_db: end'
-
+    
     def test_add_quote(self):
         print '===> test_add_quote: start'
 
@@ -137,7 +165,7 @@ class ApplicationTestCase(unittest.TestCase):
         assert find_invalid_quote is None
 
         #: TODO sql-injections (content)
-
+        
         print '===> test_add_quote: end'
 
     def test_get_quotes(self):
@@ -161,7 +189,7 @@ class ApplicationTestCase(unittest.TestCase):
         assert len(rv_list) == 3
 
         print '===> test_get_quotes: end'
-
+    
     def test_add_user(self):
         print '===> test_add_user: start'
 
@@ -190,6 +218,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print '===> test_add_user: end'
 
+'''
 
 if __name__ == '__main__':
     unittest.main()

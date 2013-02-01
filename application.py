@@ -1,12 +1,15 @@
 import os
 from flask import Flask, request
-from model import db
-from model import User, Quote, Echo, Comment
 import json
 from sqlalchemy import or_
-from sqlalchemy import desc
 import time
+
+import model
+from model import db
+from model import User, Quote, Echo, Comment
 from model import create_db
+from constants import *
+from util import *
 
 #----------------------------------------
 # initialization
@@ -19,8 +22,7 @@ app.config.update(
     DEBUG = True,  # TODO (mom) remove before deploying
 )
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/echo_webapp?init_command=set%20character%20set%20utf8'
-
+app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI 
 db.init_app(app)
 
 #----------------------------------------
@@ -31,23 +33,11 @@ db.init_app(app)
 def hello():
     return "Hello from Python yay!"
 
-# TODO (mom) add to utils.py
-# TODO (mom) add unit tests
-def split_name(name):
-    names = name.encode('utf-8').split(" ")
-    if len(names) == 0:
-        return "", ""
-    if len(names) == 1:
-        return names[0], ""
-    return names[0], names[len(names) - 1]
-
-
 def add_friends(user, friends_raw):
     for friend_raw in friends_raw:
         friend_fbid = friend_raw['id']
         friend_first, friend_last = split_name(friend_raw['name'])
         friend_picture_url = friend_raw['picture']['data']['url']
-
         #print 'add friend ' + friend_first + ' ' + friend_last + ' fbid = ' + friend_fbid
 
         friend = User.query.filter_by(fbid = friend_fbid).first()
@@ -57,49 +47,31 @@ def add_friends(user, friends_raw):
         user.friends.append(friend) # no worries, it's stored by reference in new_users_list
 
 
-# TODO (mom) make secure (API keys?)
 @app.route("/add_user", methods = ['POST'])
 def add_user():
-    udata = json.loads(request.form['data']) # AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    udata = json.loads(request.form['data'])
     fbid = udata['id']
+    #picture_url = udata['picture_url'] TODO (mom) uncomment this once rishi does the task
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
-
-    #print 'CALL ADD USER WITH name = ' + first_name + ' ' + last_name
-    print json.dumps(udata)
+    #print 'add user with name ' + first_name + ' ' + last_name + ' and ' + str(len(friends_raw)) + ' friends'
+    #print json.dumps(udata)
 
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
         # user does not exist -- create one
-        print "USER DOES NOT EXIST ==> CREATE ONE!"
-
-        # TODO (mom) add picture URL
-        # same with friends (note that picture url is already sent)
-        user = User(fbid, udata['email'], first_name, last_name, None, None, True)
-
-        # TODO (mom) do this in separate thread http://stackoverflow.com/questions/2882308/spawning-a-thread-in-python
+        user = User(fbid, udata['email'], first_name, last_name, picture_url, None, True)
         add_friends(user, friends_raw)
-
-        # or even better -- use Amazon SQS ?
-        print ' db session add'
         db.session.add(user)
-
     elif user.registered == False:
-        print "USER EXISTS BUT NOT REGISTERED -- REGISTER HER!"
-
+        # user was pre-signed up by a friend but that's the first time she's logging in
         user.registered = True
         add_friends(user, friends_raw) # TODO sep thread?
-
-        # TODO (mom) update friend list as well -- http://stackoverflow.com/questions/6611563/sqlalchemy-on-duplicate-key-update
     else:
-        print "USER REGISTERED -- ABORT"
-        return "user already registered"
+        return ErrorMessages.USER_IS_ALREADY_REGISTERED
 
-    print ' db session commit'
     db.session.commit()
-    print ' db done!'
-
-    return 'user added maybe?'
+    return SuccessMessages.USER_ADDED 
  
 
 @app.route("/add_quote", methods = ['POST'])
@@ -112,19 +84,35 @@ def add_quote():
 
     source = User.query.filter_by(fbid = sourceFbid).first()
     reporter = User.query.filter_by(fbid = reporterFbid).first()
-
     if not source:
-        return 'source with fbid %r not found' % sourceFbid
+        return ErrorMessages.SOURCE_NOT_FOUND 
     if not reporter:
-        return 'reporter with fbid %r not found' % reporterFbid
+        return ErrorMessages.REPORTER_NOT_FOUND 
 
     quote = Quote(source.id, reporter.id, content, location, False)
     db.session.add(quote)
-    print 'db commit quote'
     db.session.commit()
-    print 'db commited!'
+    return SuccessMessages.QUOTE_ADDED 
 
-    return 'quote added maybe?' 
+
+@app.route("/add_comment", methods = ['POST'])
+def add_comment():
+    qdata = json.loads(request.form['data'])
+    quoteId = qdata['quoteId']
+    userFbid = qdata['userFbid']
+    content = qdata['comment']
+
+    user = User.query.filter_by(fbid = userFbid).first()
+    quote = Quote.query.filter_by(id = quoteId).first()
+    if not user:
+        return ErrorMessages.USER_NOT_FOUND 
+    if not quote:
+        return ErrorMessages.QUOTE_NOT_FOUND
+
+    comment = Comment(user.id, quote.id, content)
+    db.session.add(comment)
+    db.session.commit()
+    return SuccessMessages.COMMENT_ADDED 
 
 
 @app.route("/get_quotes", methods = ['get'])
@@ -134,37 +122,29 @@ def get_quotes():
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
 
-    print 'start getting quotes for ' + fbid
-
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
-        return 'User NOT signed up'
+        return ErrorMessages.USER_NOT_FOUND
 
     #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
     #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id))
    
     if req_type == 'me':
-        print 'type = me'
         ids = []
     else:
-        print 'type = all'
         ids = [friend.id for friend in user.friends]
     ids.append(user.id)
 
-    mysql_datetime_format = "%Y-%m-%d %H:%M:%S"; # TODO (mom) put constant in some appropriate place
     if latest:
         created = time.localtime(float(latest))
-        created = time.strftime(mysql_datetime_format, created)
-        print 'convert latest from ' + latest + ' to ' + created
+        created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
         quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created > created).all()
     elif oldest:
         created = time.localtime(float(oldest))
-        created = time.strftime(mysql_datetime_format, created)
-        print 'convert latest from ' + oldest + ' to ' + created
+        created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
         quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created < created).all()
     else:
         quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids))).all()
-    print 'fetched %d quotes' % len(quotes)
 
     result = []
     for quote in quotes:
@@ -179,12 +159,9 @@ def get_quotes():
         result.append(quote_res)
 
     sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True)
-    print sorted_result
-    try:
-        dump = json.dumps(sorted_result)
-        return dump
-    except:
-        return "fail... couldn't json dump"
+    #print sorted_result
+    dump = json.dumps(sorted_result)
+    return dump
 
 
 #----------------------------------------
@@ -193,4 +170,4 @@ def get_quotes():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True) # TODO (mom) remove debug before release

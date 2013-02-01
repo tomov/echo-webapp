@@ -1,6 +1,7 @@
 from flask.ext.sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy import select
+from constants import DatabaseConstants
 
 db = SQLAlchemy()
 
@@ -10,7 +11,6 @@ friendship = db.Table(
     db.Column('friend_a_id', db.Integer, db.ForeignKey('users.id'), primary_key=True), 
     db.Column('friend_b_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
 )
-
 
 class User(db.Model):
     __tablename__ = 'users'
