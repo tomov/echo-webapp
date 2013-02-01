@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os
 import unittest
 import tempfile
@@ -10,9 +12,10 @@ from model import db
 from model import User, Quote, Echo, Comment
 from constants import *
 from test_data import *
+from util import *
 
 TEST_DATABASE_NAME = 'echo_webapp_test'
-TEST_DATABASE_URI = model.DATABASE_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
+TEST_DATABASE_URI = DatabaseConstants.DATABASE_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
 
 #: these lines will be used throughout for debugging purposes
 print '===> _before: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
@@ -78,29 +81,109 @@ class ApplicationTestCase(unittest.TestCase):
 
         db.session.commit() #: commit changes to db, otherwise it will rollback
 
+    def assert_is_same_user(self, user, json):
+        assert user is not None
+        assert user.fbid == json['id']
+        assert user.email == json['email']
+        assert user.picture_url == json['picture_url']
+        first, last = split_name(json['name'])
+        assert user.first_name == first
+        assert user.last_name == last
+        assert len(user.friends) == len(json['friends'])
+
+        for friend in json['friends']:
+            user = User.query.filter_by(fbid = friend["id"]).first()
+            assert user is not None
+            first, last = split_name(friend['name'])
+            assert user.first_name == first
+            assert user.last_name == last
+            assert user.picture_url == friend['picture']['data']['url']
+
+
+    def assert_is_same_quote(self, quote, json):
+        source = User.query.filter_by(fbid = json['sourceFbid']).first()
+        assert source
+        assert quote.source_id == source.id
+        reporter = User.query.filter_by(fbid = json['reporterFbid']).first()
+        assert reporter
+        assert quote.reporter_id == reporter.id 
+        assert quote.location == json['location']
+        assert quote.content == json['quote']
+
+ 
 # ----------------------------------------------------------------------
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def test_register(self):
+    def test_util(self):
+        print "\n ------- begin test util ------\n"
+
+        first, last = split_name('')
+        assert first == last
+        assert last == ''
+
+        first, last = split_name('hello')
+        assert first == 'hello'
+        assert last == ''
+
+        first, last = split_name('Jacob Simon')
+        assert first == 'Jacob'
+        assert last == 'Simon'
+
+        first, last = split_name('Momchil Slavchev Tomov')
+        assert first == 'Momchil'
+        assert last == 'Tomov'
+
+        first, last = split_name(u'Момчил Славчев Томов') # test unicode
+        assert first == 'Момчил'
+        assert last == 'Томов'
+
+        print "\n ------- end test util ------- \n"
+
+
+    def test_single_register(self):
+        # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
         assert len(User.query.all()) == 0
         george_dump = json.dumps(RandomUsers.george)
         rv = self.app.post('/add_user', data = dict(data=george_dump))
-        assert len(User.query.all()) == 1
+        assert len(User.query.all()) == 4   # hardcoded for clarity
 
         user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert user
-        
-         
-        #: make sure name was split correctly. TODO: how does app handle multiple names?
-        assert find_user.first_name == 'User'
-        assert find_user.last_name == 'Four'
-        
- 
+        self.assert_is_same_user(user, RandomUsers.george)
+        assert user.registered
 
         print "\n-------- end single test --------\n"
+
+    #def test_register_errors(self):
+        # hit all the corner cases of adding a user TODO
+
+
+    def test_single_quote(self):
+        # insert a single quote and make sure everything's fine
+        print "\n ------ begin test few quotes ------\n"
+
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+
+        assert len(Quote.query.all()) == 0
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+        assert len(Quote.query.all()) == 1
+
+        quote = Quote.query.all()[0]
+        self.assert_is_same_quote(quote, RandomQuotes.contemporary_art)
+
+        print "\n ------ end test few quotes ------\n"
+
+    #def test_single_quote_errors(self): TODO
+
+
+    def test_get_quotes_one_user(self):
+        print "\n------- begin get quotes ------\n"
+        
+        print "\n -------end test get quotes --------\n"
 
 '''
     def test_empty_db(self):

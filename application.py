@@ -51,7 +51,7 @@ def add_friends(user, friends_raw):
 def add_user():
     udata = json.loads(request.form['data'])
     fbid = udata['id']
-    #picture_url = udata['picture_url'] TODO (mom) uncomment this once rishi does the task
+    picture_url = udata['picture_url']
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
     #print 'add user with name ' + first_name + ' ' + last_name + ' and ' + str(len(friends_raw)) + ' friends'
