@@ -4,6 +4,7 @@ from model import db
 from model import User, Quote, Echo, Comment
 import json
 from sqlalchemy import or_
+from sqlalchemy import desc
 import time
 from model import create_db
 
@@ -129,6 +130,9 @@ def add_quote():
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
     fbid = request.args.get('fbid')
+    req_type = request.args.get('type')
+    oldest = request.args.get('oldest')
+    latest = request.args.get('latest')
 
     print 'start getting quotes for ' + fbid
 
@@ -139,12 +143,27 @@ def get_quotes():
     #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
     #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id))
    
-    print 'fetching quotes for ids'
-
-    ids = [friend.id for friend in user.friends]
+    if req_type == 'me':
+        print 'type = me'
+        ids = []
+    else:
+        print 'type = all'
+        ids = [friend.id for friend in user.friends]
     ids.append(user.id)
-    quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids))).all()
 
+    mysql_datetime_format = "%Y-%m-%d %H:%M:%S"; # TODO (mom) put constant in some appropriate place
+    if latest:
+        created = time.localtime(float(latest))
+        created = time.strftime(mysql_datetime_format, created)
+        print 'convert latest from ' + latest + ' to ' + created
+        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created > created).all()
+    elif oldest:
+        created = time.localtime(float(oldest))
+        created = time.strftime(mysql_datetime_format, created)
+        print 'convert latest from ' + oldest + ' to ' + created
+        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created < created).all()
+    else:
+        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids))).all()
     print 'fetched %d quotes' % len(quotes)
 
     result = []
