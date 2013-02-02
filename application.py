@@ -115,6 +115,28 @@ def add_comment():
     return SuccessMessages.COMMENT_ADDED 
 
 
+@app.route("/get_quote", methods = ['get'])
+def get_quote():
+    quoteId = request.args.get('id')
+
+
+    print 'GET QUOTE'
+    quote = Quote.query.filter_by(id = quoteId).first()
+    if not quote:
+        return ErrorMessages.QUOTE_NOT_FOUND
+
+    quote_res = dict()
+    quote_res['_id'] = str(quote.id)
+    quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
+    quote_res['sourceFbid'] = quote.source.fbid
+    quote_res['reporterFbid'] = quote.reporter.fbid
+    quote_res['location'] = quote.location
+    quote_res['quote'] = quote.content
+
+    dump = json.dumps(quote_res)
+    return dump
+
+
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
     fbid = request.args.get('fbid')
