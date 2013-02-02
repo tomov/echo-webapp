@@ -52,6 +52,7 @@ def add_user():
     udata = json.loads(request.form['data'])
     fbid = udata['id']
     picture_url = udata['picture_url']
+    email = udata['email']
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
     #print 'add user with name ' + first_name + ' ' + last_name + ' and ' + str(len(friends_raw)) + ' friends'
@@ -60,12 +61,13 @@ def add_user():
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
         # user does not exist -- create one
-        user = User(fbid, udata['email'], first_name, last_name, picture_url, None, True)
+        user = User(fbid, email, first_name, last_name, picture_url, None, True)
         add_friends(user, friends_raw)
         db.session.add(user)
     elif user.registered == False:
         # user was pre-signed up by a friend but that's the first time she's logging in
         user.registered = True
+        user.email = email
         add_friends(user, friends_raw) # TODO sep thread?
     else:
         return ErrorMessages.USER_IS_ALREADY_REGISTERED
@@ -170,7 +172,6 @@ def get_quotes():
 
     result = []
     for quote in quotes:
-        # TODO (mom/rishi) coordinate field type and naming convention
         quote_res = dict()
         quote_res['_id'] = str(quote.id)
         quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify

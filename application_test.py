@@ -5,6 +5,8 @@ import unittest
 import tempfile
 import json
 from flask.ext.sqlalchemy import SQLAlchemy
+from pprint import pprint
+import time
 
 import application
 import model
@@ -110,12 +112,21 @@ class ApplicationTestCase(unittest.TestCase):
         assert quote.location == json['location']
         assert quote.content == json['quote']
 
+    def assert_is_same_list_of_quotes(self, quotes, json_list):
+        assert len(quotes) == len(json_list)
+        quotes = sorted(quotes, key = lambda k: k['_id']) # this list is shuffled
+        for quote, json in zip(quotes, json_list):
+            assert quote['location'] == json['location']
+            assert quote['quote'] == json['quote']
+            assert str(quote['sourceFbid']) == str(json['sourceFbid'])
+            assert str(quote['reporterFbid']) == str(json['reporterFbid'])
+            
  
 # ----------------------------------------------------------------------
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def test_util(self):
+    def _test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -141,14 +152,14 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def test_single_register(self):
+    def _test_single_register(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
         assert len(User.query.all()) == 0
         george_dump = json.dumps(RandomUsers.george)
         rv = self.app.post('/add_user', data = dict(data=george_dump))
-        assert len(User.query.all()) == 4   # hardcoded for clarity
+        assert len(User.query.all()) == 5   # hardcoded for clarity
 
         user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
         self.assert_is_same_user(user, RandomUsers.george)
@@ -160,7 +171,7 @@ class ApplicationTestCase(unittest.TestCase):
         # hit all the corner cases of adding a user TODO
 
 
-    def test_single_quote(self):
+    def _test_single_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -180,9 +191,151 @@ class ApplicationTestCase(unittest.TestCase):
     #def test_single_quote_errors(self): TODO
 
 
-    def test_get_quotes_one_user(self):
+    def test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
-        
+
+        ## insert users
+        assert len(User.query.all()) == 0
+        george_dump = json.dumps(RandomUsers.george)
+        deepika_dump = json.dumps(RandomUsers.deepika)
+        angela_dump = json.dumps(RandomUsers.angela)
+        zdravko_dump = json.dumps(RandomUsers.zdravko)
+        rv = self.app.post('/add_user', data = dict(data=george_dump))
+        rv = self.app.post('/add_user', data = dict(data=deepika_dump))
+        rv = self.app.post('/add_user', data = dict(data=angela_dump))
+        rv = self.app.post('/add_user', data = dict(data=zdravko_dump))
+        assert len(User.query.all()) == 7 # hardcoded for clarity and extra security
+        assert len(User.query.filter(User.registered == True).all()) == 4
+
+        ## make sure users are ok
+        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
+        self.assert_is_same_user(angela, RandomUsers.angela)
+        assert angela.registered
+        deepika = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
+        self.assert_is_same_user(deepika, RandomUsers.deepika)
+        assert deepika.registered
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        self.assert_is_same_user(george, RandomUsers.george)
+        assert george.registered
+        zdravko = User.query.filter_by(fbid = RandomUsers.zdravko['id']).first()
+        self.assert_is_same_user(zdravko, RandomUsers.zdravko)
+        assert zdravko.registered
+
+        ## insert quote by george (reporter) and angela (source)
+        assert len(Quote.query.all()) == 0
+        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=contemporary_art))
+
+        ## make sure zdravko <---> angela <----> george <---> deepika can see it 
+        ## here the <--->'s mark friendships
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 1
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 1
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 1
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 1
+
+        ## insert quote by angela (reporter) and george (source)
+        girlfriend = json.dumps(RandomQuotes.girlfriend)
+        time.sleep(1) # so the created field is different
+        rv = self.app.post('/add_quote', data = dict(data=girlfriend))
+        ## insert quote by angela (reporter) and cameron (source)
+        anotherquote = json.dumps(RandomQuotes.anotherquote)
+        time.sleep(1)
+        rv = self.app.post('/add_quote', data = dict(data=anotherquote))
+        ## insert quote by deepika (reporter) and george (source)
+        andanotherone = json.dumps(RandomQuotes.andanotherone)
+        time.sleep(1)
+        rv = self.app.post('/add_quote', data = dict(data=andanotherone))
+
+        ## make sure everyone sees what they must
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
+
+        ## make sure the me page is working
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 0
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
+
+        ## test oldest and latest
+        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
+        timestamp = time.mktime(quote.created.timetuple()) 
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&latest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&oldest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
+
+        ## test with me page 
+        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
+        timestamp = time.mktime(quote.created.timetuple())
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
+
+        ## test with me page and extreme cases
+        quote = Quote.query.filter_by(content=RandomQuotes.contemporary_art['quote']).first()
+        timestamp = time.mktime(quote.created.timetuple()) - 10
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 0
+
+        quote = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first()
+        timestamp = time.mktime(quote.created.timetuple()) + 10
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 0
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(timestamp)))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
         print "\n -------end test get quotes --------\n"
 
 '''
