@@ -212,3 +212,22 @@ class RandomQuotes:
         "reporterFbid": 100002571158857, # deepika
         "sourceFbid": 100002537919668 # george
     }
+
+
+class RandomComments:
+    thissucks = {
+        "quoteId": 1,
+        "userFbid": 703951380, # angela
+        "comment": "this quote sucks"
+    }
+    funnyquote = {
+        "quoteId": 1,
+        "userFbid": 100002571158857, # deepika
+        "comment": "LOL this quote is truly hilarious!"
+    }
+    angelayousuck = {
+        "quoteId": 1,
+        "userFbid": 100002505656933, # zdravko
+        "comment": "Angela you suck!"
+    }
+

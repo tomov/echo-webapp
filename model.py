@@ -2,6 +2,8 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy import select
 from constants import DatabaseConstants
+from sqlalchemy.orm import backref
+from sqlalchemy import desc
 
 db = SQLAlchemy()
 
@@ -25,6 +27,7 @@ class User(db.Model):
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
     quotes_echoed = db.relationship('Echo', backref = 'users')
+    comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
     def __init__(self, fbid, email = None, first_name = None, last_name = None, picture_url = None, picture = None, registered = False):
@@ -70,7 +73,7 @@ class Quote(db.Model):
     content = db.Column(db.Text)
     location = db.Column(db.String(length = 50, collation = 'utf8_general_ci'))
     deleted = db.Column(db.Boolean)
-    comments = db.relationship('Comment', backref = 'quotes', lazy = 'dynamic')
+    comments = db.relationship('Comment', backref = 'quote', lazy = 'dynamic')
     echoes = db.relationship('Echo', backref = 'quotes', lazy = 'dynamic')
     source = db.relationship('User', backref = 'quotes_sourced', foreign_keys = [source_id])
     reporter = db.relationship('User', backref = 'quotes_reported', foreign_keys = [reporter_id])

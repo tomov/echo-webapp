@@ -4,6 +4,7 @@ import json
 from sqlalchemy import or_
 import time
 from sqlalchemy import desc
+from pprint import pprint
 
 import model
 from model import db
@@ -106,9 +107,9 @@ def add_comment():
     content = qdata['comment']
 
     user = User.query.filter_by(fbid = userFbid).first()
-    quote = Quote.query.filter_by(id = quoteId).first()
     if not user:
         return ErrorMessages.USER_NOT_FOUND 
+    quote = Quote.query.filter_by(id = quoteId).first()
     if not quote:
         return ErrorMessages.QUOTE_NOT_FOUND
 
@@ -121,12 +122,18 @@ def add_comment():
 @app.route("/get_quote", methods = ['get'])
 def get_quote():
     quoteId = request.args.get('id')
+    userFbid = request.args.get('userFbid')
 
-
-    print 'GET QUOTE'
     quote = Quote.query.filter_by(id = quoteId).first()
     if not quote:
         return ErrorMessages.QUOTE_NOT_FOUND
+
+    user = User.query.filter_by(fbid = userFbid).first()
+    if not user:
+        return ErrorMessages.USER_NOT_FOUND
+    friends_fbids = dict()
+    for friend in user.friends:
+        friends_fbids[friend.id] = 1
 
     quote_res = dict()
     quote_res['_id'] = str(quote.id)
@@ -135,6 +142,19 @@ def get_quote():
     quote_res['reporterFbid'] = quote.reporter.fbid
     quote_res['location'] = quote.location
     quote_res['quote'] = quote.content
+
+    quote_res['comments'] = []
+    comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
+    for comment in comments:
+        comment_res = dict()
+        comment_res['id'] = comment.id
+        comment_res['fbid'] = comment.user.fbid
+        comment_res['timestamp'] = time.mktime(comment.created.timetuple())
+        comment_res['comment'] = comment.content
+        if comment.user_id not in friends_fbids:
+            comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
+            comment_res['picture_url'] = comment.user.picture_url
+        quote_res['comments'].append(comment_res)
 
     dump = json.dumps(quote_res)
     return dump

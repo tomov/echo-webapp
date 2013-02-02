@@ -112,21 +112,53 @@ class ApplicationTestCase(unittest.TestCase):
         assert quote.location == json['location']
         assert quote.content == json['quote']
 
+    def assert_is_same_comment(self, comment, json):
+        user = User.query.filter_by(fbid = json['userFbid']).first()
+        assert user 
+        assert comment.user_id == user.id
+        quote = Quote.query.filter_by(id = json['quoteId']).first()
+        assert quote
+        assert comment.quote_id == quote.id
+        assert comment.content == json['comment']
+
+    ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
+    def assert_is_same_quote_jsononly(self, quote, json):
+        assert quote['location'] == json['location']
+        assert quote['quote'] == json['quote']
+        assert str(quote['sourceFbid']) == str(json['sourceFbid'])
+        assert str(quote['reporterFbid']) == str(json['reporterFbid'])
+        assert int(quote['timestamp']) > 1000000
+        assert int(quote['_id']) > 0
+
     def assert_is_same_list_of_quotes(self, quotes, json_list):
         assert len(quotes) == len(json_list)
         quotes = sorted(quotes, key = lambda k: k['_id']) # in increasing order... for convenience
         for quote, json in zip(quotes, json_list):
-            assert quote['location'] == json['location']
-            assert quote['quote'] == json['quote']
-            assert str(quote['sourceFbid']) == str(json['sourceFbid'])
-            assert str(quote['reporterFbid']) == str(json['reporterFbid'])
-            
- 
+            self.assert_is_same_quote_jsononly(quote, json)
+
+     ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
+    def assert_is_same_comment_jsononly(self, comment, json, is_friend):
+        assert str(comment['fbid']) == str(json['userFbid'])
+        assert str(comment['comment']) == str(json['comment'])
+        if not is_friend:
+            user = User.query.filter_by(fbid = json['userFbid']).first()
+            assert user
+            assert comment['name'] == user.first_name + ' ' + user.last_name
+            assert comment['picture_url'] == user.picture_url
+        else:
+            assert 'name' not in comment
+            assert 'picture_url' not in comment 
+        quote_id = Comment.query.filter_by(id = comment['id']).first().quote_id
+        assert quote_id == json['quoteId']
+        assert int(comment['timestamp']) > 1000000
+        assert int(comment['id']) > 0
+
+
 # ----------------------------------------------------------------------
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def test_util(self):
+    def _test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -152,7 +184,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def test_single_register(self):
+    def _test_single_register(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -171,7 +203,7 @@ class ApplicationTestCase(unittest.TestCase):
         # hit all the corner cases of adding a user TODO
 
 
-    def test_single_quote(self):
+    def _test_single_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -190,8 +222,68 @@ class ApplicationTestCase(unittest.TestCase):
 
     #def test_single_quote_errors(self): TODO
 
+    def _test_single_comment(self):
+        print "\n ---- begin test single comment ----- \n"
 
-    def test_get_quotes(self):
+        ## add user and quote
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+
+        ## add comment and make sure it's correct in the database
+        assert len(Comment.query.all()) == 0
+        comment_dump = json.dumps(RandomComments.thissucks)
+        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
+        assert len(Comment.query.all()) == 1
+
+        comment = Comment.query.all()[0]
+        self.assert_is_same_comment(comment, RandomComments.thissucks)
+
+        print "\n ----- end test single comment ---- \n"
+
+    def test_get_quote(self):
+        print "\n-------- begin test get quote ---\n"
+
+        ## add users, quote, a bunch of comments, favorites, and echoes
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments
+        self.app.post('/add_user', data = dict(data=zdravko_dump))
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+
+        ## make sure the correct quote is returned before adding comments
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        rv = json.loads(rv.data)
+        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
+        assert len(rv['comments']) == 0
+
+        ## now add some comments
+        comment_dump = json.dumps(RandomComments.thissucks)
+        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
+        comment_dump = json.dumps(RandomComments.funnyquote)
+        time.sleep(1) # b/c we order by created, we need to have different create times
+        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
+        comment_dump = json.dumps(RandomComments.angelayousuck) # this comment is not by a friend of george, so additional info must be returned for him by get_quote
+        time.sleep(1) # b/c we order by created, we need to have different create times
+        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
+
+        ## make sure the correct quote is returned again
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        rv = json.loads(rv.data)
+        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
+
+        ## also make sure it has the correct comments in the correct order
+        assert rv['comments']
+        assert len(rv['comments']) == 3
+        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.thissucks, True)
+        self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.funnyquote, True)
+        self.assert_is_same_comment_jsononly(rv['comments'][2], RandomComments.angelayousuck, False)
+
+        print "\n------- end test get quote ---- \n"
+
+    def _test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
 
         ## insert users
@@ -313,7 +405,7 @@ class ApplicationTestCase(unittest.TestCase):
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
 
-        ## test latest/older with me page and extreme cases
+        ## test latest/oldest with me page and extreme cases
         quote = Quote.query.filter_by(content=RandomQuotes.contemporary_art['quote']).first()
         timestamp = time.mktime(quote.created.timetuple()) - 10
 
