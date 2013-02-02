@@ -3,6 +3,7 @@ from flask import Flask, request
 import json
 from sqlalchemy import or_
 import time
+from sqlalchemy import desc
 
 import model
 from model import db
@@ -145,30 +146,34 @@ def get_quotes():
     req_type = request.args.get('type')
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
+    limit = request.args.get('limit')
+    if not limit:
+        limit = APIConstants.DEFAULT_GET_QUOTES_LIMIT
 
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
         return ErrorMessages.USER_NOT_FOUND
 
     #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
-    #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id))
+    #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
    
     if req_type == 'me':
         ids = []
     else:
         ids = [friend.id for friend in user.friends]
     ids.append(user.id)
+    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids));
 
     if latest:
         created = time.localtime(float(latest))
         created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created > created).all()
+        quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit)
     elif oldest:
         created = time.localtime(float(oldest))
         created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)), Quote.created < created).all()
+        quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit)
     else:
-        quotes = Quote.query.filter(or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids))).all()
+        quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit)
 
     result = []
     for quote in quotes:
@@ -181,9 +186,8 @@ def get_quotes():
         quote_res['quote'] = quote.content
         result.append(quote_res)
 
-    sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True)
-    #print sorted_result
-    dump = json.dumps(sorted_result)
+    #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
+    dump = json.dumps(result)
     return dump
 
 

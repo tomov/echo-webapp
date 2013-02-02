@@ -114,7 +114,7 @@ class ApplicationTestCase(unittest.TestCase):
 
     def assert_is_same_list_of_quotes(self, quotes, json_list):
         assert len(quotes) == len(json_list)
-        quotes = sorted(quotes, key = lambda k: k['_id']) # this list is shuffled
+        quotes = sorted(quotes, key = lambda k: k['_id']) # in increasing order... for convenience
         for quote, json in zip(quotes, json_list):
             assert quote['location'] == json['location']
             assert quote['quote'] == json['quote']
@@ -126,7 +126,7 @@ class ApplicationTestCase(unittest.TestCase):
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def _test_util(self):
+    def test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -152,7 +152,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def _test_single_register(self):
+    def test_single_register(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -171,7 +171,7 @@ class ApplicationTestCase(unittest.TestCase):
         # hit all the corner cases of adding a user TODO
 
 
-    def _test_single_quote(self):
+    def test_single_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -301,7 +301,7 @@ class ApplicationTestCase(unittest.TestCase):
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
 
-        ## test with me page 
+        ## test lastest/oldest with me page 
         quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
         timestamp = time.mktime(quote.created.timetuple())
 
@@ -313,7 +313,7 @@ class ApplicationTestCase(unittest.TestCase):
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
 
-        ## test with me page and extreme cases
+        ## test latest/older with me page and extreme cases
         quote = Quote.query.filter_by(content=RandomQuotes.contemporary_art['quote']).first()
         timestamp = time.mktime(quote.created.timetuple()) - 10
 
@@ -335,6 +335,38 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(timestamp)))
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
+        ## test limit
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&limit=2')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        ## test limit with me page
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me&limit=2')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.girlfriend, RandomQuotes.anotherquote])
+
+        ## test limit with latest/oldest
+        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
+        timestamp = time.mktime(quote.created.timetuple())
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&latest=' + str(int(timestamp)) + '&limit=1')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
+
+        timestamp += 1 ## relies on the fact that they're 1 second apart (see time.sleep() above)
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&oldest=' + str(int(timestamp)) + '&limit=1')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.girlfriend])
+ 
+        ## test limit extreme cases
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&limit=10')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&limit=0')
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 0
 
         print "\n -------end test get quotes --------\n"
 

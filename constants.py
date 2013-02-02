@@ -6,6 +6,9 @@ class DatabaseConstants:
 class DatetimeConstants:
     MYSQL_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+class APIConstants:
+    DEFAULT_GET_QUOTES_LIMIT = 30
+
 class ErrorMessages:
     USER_IS_ALREADY_REGISTERED = "User has already registered"
     SOURCE_NOT_FOUND = "Source with given fbid does not exist"
