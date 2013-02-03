@@ -274,6 +274,34 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end single test --------\n"
  
+    def test_delete_friendship(self):
+        print "\n ------ begin test delete friendship ---- \n"
+
+        ## add george and zdravko (and their friends)
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        angela_dump = json.dumps(RandomUsers.angela)
+        self.app.post('/add_user', data = dict(data=angela_dump))
+ 
+        ## delete a friendship
+        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert len(angela.friends) == 4  # hardcoded
+        assert len(george.friends) == 4  # hardcoded
+        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
+        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert len(angela.friends) == 3  # hardcoded
+        assert len(george.friends) == 3  # hardcoded
+        ## make sure deleting an emtpy friendship doesn't change anything
+        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
+        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert len(angela.friends) == 3  # hardcoded
+        assert len(george.friends) == 3  # hardcoded
+ 
+        print "\n ----- end test delete friendship ------\n"
+
 
     def test_add_delete_quote(self):
         print "\n ------ begin test add delete quote ------\n"
@@ -674,6 +702,17 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
+
+        ## now delete george and angela's friendship and make sure they can't see each other's quotes
+        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art]) 
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
+
+
 
         print "\n -------end test get quotes --------\n"
 

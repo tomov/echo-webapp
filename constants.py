@@ -15,10 +15,12 @@ class ErrorMessages:
     SOURCE_NOT_FOUND = "Source with given fbid does not exist"
     REPORTER_NOT_FOUND = "Reporter with given fbid does not exist"
     USER_NOT_FOUND = "User with given fbid does not exist"
+    USERS_NOT_FRIENDS = "Users are not friends"
     QUOTE_NOT_FOUND = "Quote with given id does not exist"
 
 class SuccessMessages:
     USER_ADDED = "User was added successfully!"
+    FRIENDSHIP_DELETED = "Users were unfriended successfully!"
     QUOTE_ADDED = "Quote was added successfully!"
     QUOTE_DELETED = "Quote was deleted successfully!"
     COMMENT_ADDED = "Comment was added successfully!"

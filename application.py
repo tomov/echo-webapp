@@ -211,7 +211,21 @@ def delete_echo(quoteId, userFbid):
     db.session.commit()
     return SuccessMessages.ECHO_DELETED
 
+@app.route("/delete_friendship/<aFbid>/<bFbid>", methods = ['DELETE'])
+def delete_friendship(aFbid, bFbid):
+    userA = User.query.filter_by(fbid = aFbid).first()
+    if not userA:
+        return ErrorMessages.USER_NOT_FOUND
+    userB = User.query.filter_by(fbid = bFbid).first()
+    if not userB:
+        return ErrorMessages.USER_NOT_FOUND
 
+    if userB in userA.friends:
+        userA.friends.remove(userB)
+    if userA in userB.friends:
+        userB.friends.remove(userA)
+    db.session.commit()
+    return SuccessMessages.FRIENDSHIP_DELETED
 
 
 #-------------------------------------------
