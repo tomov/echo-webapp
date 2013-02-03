@@ -126,9 +126,17 @@ def add_quote():
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
     location = qdata['location']
-    location_lat = qdata['location_lat']
-    location_long = qdata['location_long']
+    if 'location_lat' in qdata:
+        location_lat = qdata['location_lat']
+    else:
+        location_lat = None
+    if 'location_long' in qdata:
+        location_long = qdata['location_long']
+    else:
+        location_long = None
     content = qdata['quote']
+
+    print ' ADD QUOTE '
 
     source = User.query.filter_by(fbid = sourceFbid).first()
     reporter = User.query.filter_by(fbid = reporterFbid).first()
@@ -139,6 +147,7 @@ def add_quote():
 
     quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
  
+    pprint(quote)
     db.session.add(quote)
     db.session.commit()
     return SuccessMessages.QUOTE_ADDED 
