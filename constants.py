@@ -11,6 +11,7 @@ class APIConstants:
 
 class ErrorMessages:
     USER_IS_ALREADY_REGISTERED = "User has already registered"
+    USER_NOT_REGISTERED = "User has been added by a friend but is not yet registered"
     SOURCE_NOT_FOUND = "Source with given fbid does not exist"
     REPORTER_NOT_FOUND = "Reporter with given fbid does not exist"
     USER_NOT_FOUND = "User with given fbid does not exist"
@@ -20,4 +21,4 @@ class SuccessMessages:
     USER_ADDED = "User was added successfully!"
     QUOTE_ADDED = "Quote was added successfully!"
     COMMENT_ADDED = "Comment was added successfully!"
-
+    USER_UPDATED = "User was updated successfully!"

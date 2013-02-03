@@ -185,6 +185,73 @@ class RandomUsers:
 
 
 
+class RandomStuff:
+    not_friends_with_george = [
+        {
+            "picture": { 
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-prn1/157595_100002370439632_748462517_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "1304316688", 
+            "name": "Cameron Livingston"
+        },
+        {
+            "picture": { 
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-prn1/274070_100002505656933_2199345_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "100002505656933", 
+            "name": "Zdravko Beshev"
+        },
+        {
+            "picture": { 
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_2070708925_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "7654321",
+            "name": "Mimi Hello"
+        },
+    ]
+
+    not_friends_with_angela = [
+        {
+            "picture": { 
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc6/275685_100001040617130_24180076_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "100001040617130", 
+            "name": "Momchil's Mom"
+        },
+        {
+            "picture": {
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/370322_100002571158857_1251482889_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "100002571158857", 
+            "name": "Deepika Narang"
+        },
+        {
+            "picture": { 
+                "data": {
+                    "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_2070708925_q.jpg",
+                    "is_silhouette": False
+                }
+            }, 
+            "id": "7654321",
+            "name": "Mimi Hello"
+        },
+    ]
+
 
 
 class RandomQuotes:

@@ -7,6 +7,7 @@ import json
 from flask.ext.sqlalchemy import SQLAlchemy
 from pprint import pprint
 import time
+from copy import copy
 
 import application
 import model
@@ -189,7 +190,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def test_single_register(self):
+    def test_add_user(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -204,11 +205,77 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end single test --------\n"
 
-    #def test_register_errors(self):
-        # hit all the corner cases of adding a user TODO
 
+    def test_update_user(self):
+        print "\n------- begin single test -------\n"
 
-    def test_single_quote(self):
+        # insert george so we can play with him
+        george_dump = json.dumps(RandomUsers.george)
+        rv = self.app.post('/add_user', data = dict(data=george_dump))
+
+        # create a user we'll keep updating here to compare with the one in the db
+        george_new = copy(RandomUsers.george)
+
+        # change name only and make sure it's the same
+        delta = {'id': RandomUsers.george['id'], 'name': 'Oh God'}
+        george_new.update(delta)
+        delta_dump = json.dumps(delta)
+        rv = self.app.post('/update_user', data = dict(data=delta_dump))
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        self.assert_is_same_user(user, george_new)
+
+        # change email only
+        delta = {'id': RandomUsers.george['id'], 'email': 'hahahha@gmail.com'}
+        george_new.update(delta)
+        delta_dump = json.dumps(delta)
+        rv = self.app.post('/update_user', data = dict(data=delta_dump))
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        self.assert_is_same_user(user, george_new)
+
+        # change picture_url only
+        delta = {'id': RandomUsers.george['id'], 'picture_url': 'http://www.google.com/thisisnotarealurl'}
+        george_new.update(delta)
+        delta_dump = json.dumps(delta)
+        rv = self.app.post('/update_user', data = dict(data=delta_dump))
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        self.assert_is_same_user(user, george_new)
+
+        # update friends only (add angela's friends)
+        delta = {'id': RandomUsers.george['id'], 'friends': RandomStuff.not_friends_with_george}
+        george_new['friends'].extend(RandomStuff.not_friends_with_george)
+        delta_dump = json.dumps(delta)
+        rv = self.app.post('/update_user', data = dict(data=delta_dump))
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        self.assert_is_same_user(user, george_new)
+
+        # udpate george back to normal (except for friends, can't remove the new ones)
+        # we also do this so that he appears correct in angela's friend list once we add her below
+        george_dump = json.dumps(RandomUsers.george)
+        rv = self.app.post('/update_user', data = dict(data=george_dump))
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert len(george.friends) == 7 # hardcoded for extra protection
+
+        # insert angela so we can play with her too
+        angela_dump = json.dumps(RandomUsers.angela)
+        rv = self.app.post('/add_user', data = dict(data=angela_dump))
+        # update angela completely and make sure she's updated correctly
+        angela_new = {
+            'id': RandomUsers.angela['id'],
+            'name': 'No Name',
+            'email': 'lkajflajsdf@gmail.com',
+            'picture_url': 'alksdjflkasjlfjasl;dfjlksad;jfl;as.com',
+            'friends': RandomStuff.not_friends_with_angela
+        }
+        delta_dump = json.dumps(angela_new)
+        angela_new['friends'].extend(RandomUsers.angela['friends'])
+        rv = self.app.post('/update_user', data = dict(data=delta_dump))
+        user = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
+        self.assert_is_same_user(user, angela_new)
+
+        print "\n-------- end single test --------\n"
+ 
+
+    def test_add_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -225,9 +292,8 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n ------ end test few quotes ------\n"
 
-    #def test_single_quote_errors(self): TODO
 
-    def test_single_comment(self):
+    def test_add_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -246,6 +312,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_comment(comment, RandomComments.thissucks)
 
         print "\n ----- end test single comment ---- \n"
+
 
     def test_get_quote(self):
         print "\n-------- begin test get quote ---\n"

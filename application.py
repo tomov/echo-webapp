@@ -40,14 +40,12 @@ def add_friends(user, friends_raw):
         friend_fbid = friend_raw['id']
         friend_first, friend_last = split_name(friend_raw['name'])
         friend_picture_url = friend_raw['picture']['data']['url']
-        #print 'add friend ' + friend_first + ' ' + friend_last + ' fbid = ' + friend_fbid
 
         friend = User.query.filter_by(fbid = friend_fbid).first()
         if not friend:
             friend = User(friend_fbid, None, friend_first, friend_last, friend_picture_url,  None, False)
             db.session.add(friend)
-        user.friends.append(friend) # no worries, it's stored by reference in new_users_list
-
+        user.friends.append(friend)
 
 @app.route("/add_user", methods = ['POST'])
 def add_user():
@@ -57,8 +55,6 @@ def add_user():
     email = udata['email']
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
-    #print 'add user with name ' + first_name + ' ' + last_name + ' and ' + str(len(friends_raw)) + ' friends'
-    #print json.dumps(udata)
 
     user = User.query.filter_by(fbid = fbid).first()
     if not user:
@@ -72,11 +68,52 @@ def add_user():
         user.email = email
         add_friends(user, friends_raw) # TODO sep thread?
     else:
-        return ErrorMessages.USER_IS_ALREADY_REGISTERED
+        return ErrorMessages.USER_IS_ALREADY_REGISTERED # must call update_user
 
     db.session.commit()
     return SuccessMessages.USER_ADDED 
- 
+
+@app.route("/update_user", methods = ['POST'])
+def update_user():
+    udata = json.loads(request.form['data'])
+    picture_url = None
+    email = None
+    first_name = None
+    last_name = None
+    friends_raw = None
+    fbid = udata['id']
+    if 'picture_url' in udata:
+        picture_url = udata['picture_url']
+    if 'email' in udata:
+        email = udata['email']
+    if 'name' in udata:
+        first_name, last_name = split_name(udata['name'])
+    if 'friends' in udata:
+        friends_raw = udata['friends']
+
+    user = User.query.filter_by(fbid = fbid).first()
+    if not user:
+        # user does not exist -- must call add_user
+        return ErrorMessages.USER_NOT_FOUND
+    elif user.registered == False:
+        # user was pre-signed up by a friend but that's the first time she's logging in -- must call add_user
+        return ErrorMessages.USER_NOT_REGISTERED
+    else:
+        if picture_url:
+            user.picture_url = picture_url
+        if email:
+            user.email = email
+        if first_name:
+            user.first_name = first_name
+        if last_name:
+            user.last_name = last_name
+        if friends_raw:
+            add_friends(user, friends_raw) # TODO sep thread? also what if you add the same friendship multiple times?
+
+    db.session.commit()
+    return SuccessMessages.USER_UPDATED 
+
+
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
@@ -189,7 +226,7 @@ def get_quotes():
     else:
         ids = [friend.id for friend in user.friends]
     ids.append(user.id)
-    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids));
+    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)) #Quote.echoes.any(Echo.user_id.in_(ids))  <-- this is how we'll do the echoes thing
 
     if latest:
         created = time.localtime(float(latest))
