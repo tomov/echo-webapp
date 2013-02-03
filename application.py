@@ -178,10 +178,6 @@ def add_echo():
         return ErrorMessages.QUOTE_NOT_FOUND
 
     quote.echoers.append(user)
-
-    print '\n append echo \n'
-    pprint(quote.echoers)
-
     db.session.commit()
     return SuccessMessages.ECHO_ADDED
 

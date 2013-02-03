@@ -164,7 +164,7 @@ class ApplicationTestCase(unittest.TestCase):
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def _test_util(self):
+    def test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -190,7 +190,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def _test_add_user(self):
+    def test_add_user(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -206,7 +206,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
 
 
-    def _test_update_user(self):
+    def test_update_user(self):
         print "\n------- begin single test -------\n"
 
         # insert george so we can play with him
@@ -275,7 +275,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
  
 
-    def _test_add_quote(self):
+    def test_add_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -293,7 +293,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------ end test few quotes ------\n"
 
 
-    def _test_add_comment(self):
+    def test_add_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -385,10 +385,10 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_comment_jsononly(rv['comments'][2], RandomComments.angelayousuck, False)
 
         ## now add some echoes
-        echo = {'quoteId' : 0, 'userFbid' : RandomUsers.deepika['id']}
+        echo = {'quoteId' : 1, 'userFbid' : RandomUsers.deepika['id']}
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        echo = {'quoteId' : 0, 'userFbid' : RandomUsers.zdravko['id']}
+        echo = {'quoteId' : 1, 'userFbid' : RandomUsers.zdravko['id']}
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         ## get quote and make sure echo count is right
@@ -397,11 +397,10 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
         assert rv['num_echoes'] == 2
 
-
         print "\n------- end test get quote ---- \n"
 
 
-    def _test_get_quotes(self):
+    def test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
 
         ## insert users
@@ -480,7 +479,6 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
 
         ## make sure the me page is working
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'] + '&type=me')
@@ -577,6 +575,18 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&limit=0')
         rv_list = json.loads(rv.data)
         assert len(rv_list) == 0
+
+        ## test single echo 
+        andanotherone = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first() # quote by george and deepika
+        echo = {'quoteId' : andanotherone.id, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        ## TODO perhaps create a more intricate test case for echoing although this should be good for now 
 
         print "\n -------end test get quotes --------\n"
 
