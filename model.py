@@ -7,6 +7,14 @@ from sqlalchemy import desc
 
 db = SQLAlchemy()
 
+# many-to-many from http://docs.sqlalchemy.org/en/latest/orm/relationships.html#many-to-many
+# alternatively, we could use an association object (same link) but there's no additional info to store at this point
+echoes = db.Table(
+    'echoes',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id')),
+    db.Column('quote_id', db.Integer, db.ForeignKey('quotes.id'))
+)
+
 # copied from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
 friendship = db.Table(
     'friendships', 
@@ -19,14 +27,13 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     created = db.Column(db.DateTime)
     modified = db.Column(db.DateTime)
-    fbid = db.Column(db.String(length = 50), unique = True)
+    fbid = db.Column(db.String(length = 50), primary_key = True)
     email = db.Column(db.String(length = 50, collation = 'utf8_general_ci'), unique = True)
     first_name = db.Column(db.String(length = 50, collation = 'utf8_general_ci'))
     last_name = db.Column(db.String(length = 50, collation = 'utf8_general_ci'))
     picture_url = db.Column(db.Text)
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
-    quotes_echoed = db.relationship('Echo', backref = 'users')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
@@ -76,7 +83,7 @@ class Quote(db.Model):
     location_long = db.Column(db.Float(precision = 32))  # Note: alembic
     deleted = db.Column(db.Boolean)
     comments = db.relationship('Comment', backref = 'quote', lazy = 'dynamic')
-    echoes = db.relationship('Echo', backref = 'quotes', lazy = 'dynamic')
+    echoers = db.relationship('User', secondary = echoes, backref = 'quotes_echoed')
     source = db.relationship('User', backref = 'quotes_sourced', foreign_keys = [source_id])
     reporter = db.relationship('User', backref = 'quotes_reported', foreign_keys = [reporter_id])
 
@@ -94,20 +101,6 @@ class Quote(db.Model):
     def __repr__(self):
         return '<Quote %r>' % self.content
 
-
-# did this after http://docs.sqlalchemy.org/en/rel_0_7/orm/relationships.html, association object stuff
-class Echo(db.Model):
-    __tablename__ = 'echoes'
-    id = db.Column(db.Integer, primary_key = True)
-    created = db.Column(db.DateTime)
-    modified = db.Column(db.DateTime)
-    quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), primary_key = True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key = True)
-    def __init__(self, quote_id, user_id):
-        self.quote_id = quote_id
-        self.user_id = user_id
-        self.created = datetime.utcnow()
-        self.modified = self.created
 
 class Comment(db.Model):
     __tablename__ = 'comments'

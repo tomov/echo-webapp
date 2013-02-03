@@ -22,3 +22,4 @@ class SuccessMessages:
     QUOTE_ADDED = "Quote was added successfully!"
     COMMENT_ADDED = "Comment was added successfully!"
     USER_UPDATED = "User was updated successfully!"
+    ECHO_ADDED = "Quote was echoed successfully!"

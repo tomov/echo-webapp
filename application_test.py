@@ -12,7 +12,7 @@ from copy import copy
 import application
 import model
 from model import db
-from model import User, Quote, Echo, Comment
+from model import User, Quote, Comment
 from constants import *
 from test_data import *
 from util import *
@@ -164,7 +164,7 @@ class ApplicationTestCase(unittest.TestCase):
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def test_util(self):
+    def _test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -190,7 +190,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def test_add_user(self):
+    def _test_add_user(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -206,7 +206,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
 
 
-    def test_update_user(self):
+    def _test_update_user(self):
         print "\n------- begin single test -------\n"
 
         # insert george so we can play with him
@@ -275,7 +275,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
  
 
-    def test_add_quote(self):
+    def _test_add_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -293,7 +293,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------ end test few quotes ------\n"
 
 
-    def test_add_comment(self):
+    def _test_add_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -314,22 +314,53 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ----- end test single comment ---- \n"
 
 
+    def test_add_echo(self):
+        print "\n---------- being test add echo -----\n"
+
+        ## add user and quote
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+        ## and fetch the quote and the user that will echo it
+        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
+        quote = Quote.query.all()[0]
+
+        ## add echo 
+        assert len(quote.echoers) == 0
+        assert len(user.quotes_echoed) == 0
+        echo = {'quoteId' : quote.id, 'userFbid' : RandomUsers.deepika['id']}
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        
+        ## make sure it's there
+        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
+        quote = Quote.query.all()[0]
+        assert len(quote.echoers) == 1
+        assert len(user.quotes_echoed) == 1
+        assert quote.echoers[0].id == user.id
+        assert user.quotes_echoed[0].id == quote.id
+
+        print "\n-------- end test add echo ---------\n"
+
+
     def test_get_quote(self):
         print "\n-------- begin test get quote ---\n"
 
         ## add users, quote, a bunch of comments, favorites, and echoes
         george_dump = json.dumps(RandomUsers.george)
         self.app.post('/add_user', data = dict(data=george_dump))
-        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments
+        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and echoes
         self.app.post('/add_user', data = dict(data=zdravko_dump))
         quote_dump = json.dumps(RandomQuotes.contemporary_art)
         rv = self.app.post('/add_quote', data = dict(data=quote_dump))
 
-        ## make sure the correct quote is returned before adding comments
+        ## make sure the correct quote is returned before adding comments and echoes
         rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
         rv = json.loads(rv.data)
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
         assert len(rv['comments']) == 0
+        assert rv['num_echoes'] == 0
 
         ## now add some comments
         comment_dump = json.dumps(RandomComments.thissucks)
@@ -353,9 +384,24 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.funnyquote, True)
         self.assert_is_same_comment_jsononly(rv['comments'][2], RandomComments.angelayousuck, False)
 
+        ## now add some echoes
+        echo = {'quoteId' : 0, 'userFbid' : RandomUsers.deepika['id']}
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        echo = {'quoteId' : 0, 'userFbid' : RandomUsers.zdravko['id']}
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        ## get quote and make sure echo count is right
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        rv = json.loads(rv.data)
+        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
+        assert rv['num_echoes'] == 2
+
+
         print "\n------- end test get quote ---- \n"
 
-    def test_get_quotes(self):
+
+    def _test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
 
         ## insert users

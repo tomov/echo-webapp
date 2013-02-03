@@ -8,7 +8,7 @@ from pprint import pprint
 
 import model
 from model import db
-from model import User, Quote, Echo, Comment
+from model import User, Quote, Comment
 from model import create_db
 from constants import *
 from util import *
@@ -34,6 +34,12 @@ db.init_app(app)
 @app.route("/")
 def hello():
     return "Hello from Python yay!"
+
+
+#---------------------------------------
+#         POST REQUESTS
+#----------------------------------------
+
 
 def add_friends(user, friends_raw):
     for friend_raw in friends_raw:
@@ -114,7 +120,6 @@ def update_user():
     return SuccessMessages.USER_UPDATED 
 
 
-
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
     qdata = json.loads(request.form['data'])
@@ -138,6 +143,7 @@ def add_quote():
     db.session.commit()
     return SuccessMessages.QUOTE_ADDED 
 
+
 @app.route("/add_comment", methods = ['POST'])
 def add_comment():
     qdata = json.loads(request.form['data'])
@@ -157,6 +163,33 @@ def add_comment():
     db.session.commit()
     return SuccessMessages.COMMENT_ADDED 
 
+
+@app.route("/add_echo", methods = ['POST'])
+def add_echo():
+    data = json.loads(request.form['data'])
+    quoteId = data['quoteId']
+    userFbid = data['userFbid']
+
+    user = User.query.filter_by(fbid = userFbid).first()
+    if not user:
+        return ErrorMessages.USER_NOT_FOUND
+    quote = Quote.query.filter_by(id = quoteId).first()
+    if not quote:
+        return ErrorMessages.QUOTE_NOT_FOUND
+
+    quote.echoers.append(user)
+
+    print '\n append echo \n'
+    pprint(quote.echoers)
+
+    db.session.commit()
+    return SuccessMessages.ECHO_ADDED
+
+#-------------------------------------------
+#           GET REQUESTS
+#-------------------------------------------
+
+
 def quote_dict_from_obj(quote):
     quote_res = dict()
     quote_res['_id'] = str(quote.id)
@@ -167,6 +200,7 @@ def quote_dict_from_obj(quote):
     quote_res['location_lat'] = quote.location_lat
     quote_res['location_long'] = quote.location_long
     quote_res['quote'] = quote.content
+    quote_res['num_echoes'] = len(quote.echoers)
     return quote_res
 
 @app.route("/get_quote", methods = ['get'])
@@ -226,7 +260,7 @@ def get_quotes():
     else:
         ids = [friend.id for friend in user.friends]
     ids.append(user.id)
-    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids)) #Quote.echoes.any(Echo.user_id.in_(ids))  <-- this is how we'll do the echoes thing
+    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids), Quote.echoers.any(User.id.in_(ids)))
 
     if latest:
         created = time.localtime(float(latest))
