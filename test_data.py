@@ -190,24 +190,32 @@ class RandomUsers:
 class RandomQuotes:
     contemporary_art = {
         "location": "Museum of Modern Art",
+        "location_lat": 23423453.34352,
+        "location_long": 3465435642.45,
         "quote": "Contemporary art is like unicorns run over by tanks",
         "reporterFbid": 100002537919668, # george
         "sourceFbid": 703951380  # angela
     }
     girlfriend = {
         "location": "Joline Hall",
+        "location_lat": 99923453.34352,
+        "location_long": 12435642.45,
         "quote": "Wait, that's his girlfriend? I thought it was weird that he was touching her face...",
         "reporterFbid": 703951380, # angela
         "sourceFbid": 100002537919668  # geroge
     }
     anotherquote = {
         "location": "Princeton, NJ",
+        "location_lat": 234235.34352,
+        "location_long": 311115642.45,
         "quote": "Is this really a quote? So meta...",
         "reporterFbid": 703951380, # angela 
         "sourceFbid": 1304316688  # cameron (unregistered)
     }
     andanotherone = {
         "location": "Unknown location",
+        "location_lat": 2343.34352,
+        "location_long": 34642.45,
         "quote": "This is really super meta.... unreal... lkasdjfljasldfkj",
         "reporterFbid": 100002571158857, # deepika
         "sourceFbid": 100002537919668 # george

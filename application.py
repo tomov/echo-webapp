@@ -84,6 +84,8 @@ def add_quote():
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
     location = qdata['location']
+    location_lat = qdata['location_lat']
+    location_long = qdata['location_long']
     content = qdata['quote']
 
     source = User.query.filter_by(fbid = sourceFbid).first()
@@ -93,11 +95,11 @@ def add_quote():
     if not reporter:
         return ErrorMessages.REPORTER_NOT_FOUND 
 
-    quote = Quote(source.id, reporter.id, content, location, False)
+    quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
+ 
     db.session.add(quote)
     db.session.commit()
     return SuccessMessages.QUOTE_ADDED 
-
 
 @app.route("/add_comment", methods = ['POST'])
 def add_comment():
@@ -118,6 +120,17 @@ def add_comment():
     db.session.commit()
     return SuccessMessages.COMMENT_ADDED 
 
+def quote_dict_from_obj(quote):
+    quote_res = dict()
+    quote_res['_id'] = str(quote.id)
+    quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
+    quote_res['sourceFbid'] = quote.source.fbid
+    quote_res['reporterFbid'] = quote.reporter.fbid
+    quote_res['location'] = quote.location
+    quote_res['location_lat'] = quote.location_lat
+    quote_res['location_long'] = quote.location_long
+    quote_res['quote'] = quote.content
+    return quote_res
 
 @app.route("/get_quote", methods = ['get'])
 def get_quote():
@@ -135,13 +148,7 @@ def get_quote():
     for friend in user.friends:
         friends_fbids[friend.id] = 1
 
-    quote_res = dict()
-    quote_res['_id'] = str(quote.id)
-    quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
-    quote_res['sourceFbid'] = quote.source.fbid
-    quote_res['reporterFbid'] = quote.reporter.fbid
-    quote_res['location'] = quote.location
-    quote_res['quote'] = quote.content
+    quote_res = quote_dict_from_obj(quote)
 
     quote_res['comments'] = []
     comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
@@ -197,13 +204,7 @@ def get_quotes():
 
     result = []
     for quote in quotes:
-        quote_res = dict()
-        quote_res['_id'] = str(quote.id)
-        quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
-        quote_res['sourceFbid'] = quote.source.fbid
-        quote_res['reporterFbid'] = quote.reporter.fbid
-        quote_res['location'] = quote.location
-        quote_res['quote'] = quote.content
+        quote_res = quote_dict_from_obj(quote)
         result.append(quote_res)
 
     #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries

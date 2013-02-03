@@ -72,17 +72,21 @@ class Quote(db.Model):
     reporter_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     content = db.Column(db.Text)
     location = db.Column(db.String(length = 50, collation = 'utf8_general_ci'))
+    location_lat = db.Column(db.Float(precision = 32))   # Note: this is in an alembic revison 
+    location_long = db.Column(db.Float(precision = 32))  # Note: alembic
     deleted = db.Column(db.Boolean)
     comments = db.relationship('Comment', backref = 'quote', lazy = 'dynamic')
     echoes = db.relationship('Echo', backref = 'quotes', lazy = 'dynamic')
     source = db.relationship('User', backref = 'quotes_sourced', foreign_keys = [source_id])
     reporter = db.relationship('User', backref = 'quotes_reported', foreign_keys = [reporter_id])
 
-    def __init__(self, source_id, reporter_id, content = None, location = None, deleted = False):
+    def __init__(self, source_id, reporter_id, content = None, location = None, location_lat = None, location_long = None, deleted = False):
         self.source_id = source_id
         self.reporter_id = reporter_id
         self.content = content
         self.location = location
+        self.location_lat = location_lat
+        self.location_long = location_long
         self.deleted = deleted
         self.created = datetime.utcnow()
         self.modified = self.created

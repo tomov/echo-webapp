@@ -51,6 +51,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print '===> teardown: end'
 
+    ## TODO this is legacy from Chris, see how can possibly make useful 
     def add_sample_data(self):
         #: sample users
         user1 = User(1, 'user1@somesite.com', 'User', 'One', None, None, True)
@@ -110,6 +111,8 @@ class ApplicationTestCase(unittest.TestCase):
         assert reporter
         assert quote.reporter_id == reporter.id 
         assert quote.location == json['location']
+        assert quote.location_lat == json['location_lat']
+        assert quote.location_long == json['location_long']
         assert quote.content == json['quote']
 
     def assert_is_same_comment(self, comment, json):
@@ -124,6 +127,8 @@ class ApplicationTestCase(unittest.TestCase):
     ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
     def assert_is_same_quote_jsononly(self, quote, json):
         assert quote['location'] == json['location']
+        assert quote['location_lat'] == json['location_lat']
+        assert quote['location_long'] == json['location_long']
         assert quote['quote'] == json['quote']
         assert str(quote['sourceFbid']) == str(json['sourceFbid'])
         assert str(quote['reporterFbid']) == str(json['reporterFbid'])
@@ -158,7 +163,7 @@ class ApplicationTestCase(unittest.TestCase):
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def _test_util(self):
+    def test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -184,7 +189,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def _test_single_register(self):
+    def test_single_register(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -203,7 +208,7 @@ class ApplicationTestCase(unittest.TestCase):
         # hit all the corner cases of adding a user TODO
 
 
-    def _test_single_quote(self):
+    def test_single_quote(self):
         # insert a single quote and make sure everything's fine
         print "\n ------ begin test few quotes ------\n"
 
@@ -222,7 +227,7 @@ class ApplicationTestCase(unittest.TestCase):
 
     #def test_single_quote_errors(self): TODO
 
-    def _test_single_comment(self):
+    def test_single_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -283,7 +288,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n------- end test get quote ---- \n"
 
-    def _test_get_quotes(self):
+    def test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
 
         ## insert users
@@ -462,123 +467,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n -------end test get quotes --------\n"
 
-'''
-    def test_empty_db(self):
-        print '===> test_empty_db: start'
 
-        assert len(Quote.query.all()) == 0
-        assert len(User.query.all()) == 0
-        assert len(Echo.query.all()) == 0
-        assert len(Comment.query.all()) == 0
-
-        print '===> test_empty_db: end'
-    
-    def test_add_quote(self):
-        print '===> test_add_quote: start'
-
-        self.add_sample_data()
-        assert len(User.query.all()) != 0
-
-        #: test add_quote
-        quote = {
-                'sourceFbid' : 1,
-                'reporterFbid' : 2,
-                'location' : 'Princeton, NJ',
-                'quote' : 'Testing add_quote.'
-        } 
-        dump = json.dumps(quote)
-        
-        rv = self.app.post('/add_quote', data=dict(data=dump))
-
-        find_quote = Quote.query.filter_by(content='Testing add_quote.').first()
-        assert find_quote is not None
-
-        # make sure source and reporter exist
-        source = User.query.filter_by(fbid=quote['sourceFbid']).first()
-        reporter = User.query.filter_by(fbid=quote['reporterFbid']).first()
-        assert source is not None
-        assert reporter is not None
-
-        # test invalid quotes
-        invalid_quote = {
-                        'sourceFbid' : 0, #: invalid
-                        'reporterFbid' : 1,
-                        'location' : 'Princeton, NJ',
-                        'quote' : 'Source DNE.'
-        }
-        dump = json.dumps(invalid_quote)
-        rv = self.app.post('/add_quote', data=dict(data=dump))
-
-        find_invalid_quote = Quote.query.filter_by(content='Source DNE.').first()
-        assert find_invalid_quote is None
-
-        invalid_quote = {
-                        'sourceFbid' : 1,
-                        'reporterFbid' : 0, #: invalid
-                        'location' : 'Princeton, NJ',
-                        'quote' : 'Reporter DNE.'
-        }
-        dump = json.dumps(invalid_quote)
-        rv = self.app.post('/add_quote', data=dict(data=dump))
-
-        find_invalid_quote = Quote.query.filter_by(content='Reporter DNE.').first()
-        assert find_invalid_quote is None
-
-        #: TODO sql-injections (content)
-        
-        print '===> test_add_quote: end'
-
-    def test_get_quotes(self):
-        print '===> test_get_quotes: start'
-
-        rv = self.app.get('/get_quotes')
-        assert 'User NOT signed up' in rv.data
-
-        self.add_sample_data()
-
-        rv = self.app.get('/get_quotes?fbid=1')
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 3
-
-        rv = self.app.get('/get_quotes?fbid=2')
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 3
-
-        rv = self.app.get('/get_quotes?fbid=3')
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 3
-
-        print '===> test_get_quotes: end'
-    
-    def test_add_user(self):
-        print '===> test_add_user: start'
-
-        self.add_sample_data()
-        assert len(User.query.all()) == 3
-
-        user = {
-               'id' : 4,
-               'email': 'user4@somesite.com',
-               'name': 'User Four',
-               'friends' : {} # TODO: add friends (already existing and nonexisting)
-        }
-        dump = json.dumps(user)
-        rv = self.app.post('/add_user', data=dict(data=dump))
-
-        find_user = User.query.filter_by(fbid=4).all()
-        assert len(find_user) == 1 #: verify that user was added
-        
-        find_user = find_user[0]
-
-        #: make sure name was split correctly. TODO: how does app handle multiple names?
-        assert find_user.first_name == 'User'
-        assert find_user.last_name == 'Four'
-        
-        #: TODO: test for sql injections, insertion of invalid users, duplicates, etc.
-
-        print '===> test_add_user: end'
-
-'''
 
 if __name__ == '__main__':
     unittest.main()
