@@ -275,22 +275,27 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
  
 
-    def test_add_quote(self):
-        # insert a single quote and make sure everything's fine
-        print "\n ------ begin test few quotes ------\n"
+    def test_add_delete_quote(self):
+        print "\n ------ begin test add delete quote ------\n"
 
         george_dump = json.dumps(RandomUsers.george)
         self.app.post('/add_user', data = dict(data=george_dump))
 
+        ## insert a single quote
         assert len(Quote.query.all()) == 0
         quote_dump = json.dumps(RandomQuotes.contemporary_art)
         rv = self.app.post('/add_quote', data = dict(data=quote_dump))
         assert len(Quote.query.all()) == 1
 
+        ## make sure it's there and it's the correct one
         quote = Quote.query.all()[0]
         self.assert_is_same_quote(quote, RandomQuotes.contemporary_art)
 
-        print "\n ------ end test few quotes ------\n"
+        ## now delete it and make sure it's gone
+        rv = self.app.delete('/delete_quote/' + str(quote.id))
+        assert len(Quote.query.all()) == 0
+
+        print "\n ------ end test add delete quote ------\n"
 
 
     def test_add_comment(self):
@@ -597,8 +602,8 @@ class ApplicationTestCase(unittest.TestCase):
 
         ## add the first echo and see if zdravko sees it
         andanotherone = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first() # quote by george and deepika
-        quoteId = str(andanotherone.id)
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
+        andanotheroneId = str(andanotherone.id)
+        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         
@@ -607,7 +612,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
 
         ## add second echo and see if there is no duplication
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
+        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
 
@@ -616,12 +621,59 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
 
         ## remove angela's echo and make sure zdravko can't see it anymore
-        rv = self.app.delete('/delete_echo/' + quoteId + '/' + str(RandomUsers.angela['id']))
+        rv = self.app.delete('/delete_echo/' + andanotheroneId + '/' + str(RandomUsers.angela['id']))
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
 
         ## TODO perhaps create a more intricate test case for echoing although this should be good for now 
+
+        ## test deleting quotes and how the feed and the me pages change
+
+        ## delete one quote
+        girlfriend = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first() # quote by george and deepika
+        girlfriendId = str(girlfriend.id)
+        rv = self.app.delete('/delete_quote/' + girlfriendId)
+
+        ## make sure it's gone from everyone's feed (note this is copy-paste from above -- refactor somehow, too much code duping)
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.andanotherone])
+
+        ## make sure it's gone from the me pages too
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me')
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.andanotherone])
+
+        ## add the same echo as up there but then delete the quote to make sure it disappears from zdravko's feed 
+
+        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.angela['id']} # angela echoes george's quote
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+        ## now delete it and make sure zdravko can't see it
+        rv = self.app.delete('/delete_quote/' + andanotheroneId)
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
 
         print "\n -------end test get quotes --------\n"
 

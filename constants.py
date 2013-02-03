@@ -20,6 +20,7 @@ class ErrorMessages:
 class SuccessMessages:
     USER_ADDED = "User was added successfully!"
     QUOTE_ADDED = "Quote was added successfully!"
+    QUOTE_DELETED = "Quote was deleted successfully!"
     COMMENT_ADDED = "Comment was added successfully!"
     USER_UPDATED = "User was updated successfully!"
     ECHO_ADDED = "Quote was echoed successfully!"
