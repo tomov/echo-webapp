@@ -181,6 +181,28 @@ def add_echo():
     db.session.commit()
     return SuccessMessages.ECHO_ADDED
 
+
+#-------------------------------------------
+#           DELETE REQUESTS
+#-------------------------------------------
+
+
+@app.route("/delete_echo/<quoteId>/<userFbid>", methods = ['DELETE'])
+def delete_echo(quoteId, userFbid):
+    user = User.query.filter_by(fbid = userFbid).first()
+    if not user:
+        return ErrorMessages.USER_NOT_FOUND
+    quote = Quote.query.filter_by(id = quoteId).first()
+    if not quote:
+        return ErrorMessages.QUOTE_NOT_FOUND
+
+    quote.echoers.remove(user)
+    db.session.commit()
+    return SuccessMessages.ECHO_DELETED
+
+
+
+
 #-------------------------------------------
 #           GET REQUESTS
 #-------------------------------------------

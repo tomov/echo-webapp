@@ -314,8 +314,8 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ----- end test single comment ---- \n"
 
 
-    def test_add_echo(self):
-        print "\n---------- being test add echo -----\n"
+    def test_add_delete_echo(self):
+        print "\n---------- being test add/delete echo -----\n"
 
         ## add user and quote
         george_dump = json.dumps(RandomUsers.george)
@@ -334,14 +334,21 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         
         ## make sure it's there
-        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
+        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
         quote = Quote.query.all()[0]
         assert len(quote.echoers) == 1
         assert len(user.quotes_echoed) == 1
         assert quote.echoers[0].id == user.id
         assert user.quotes_echoed[0].id == quote.id
 
-        print "\n-------- end test add echo ---------\n"
+        ## remove echo and make sure it's gone
+        rv = self.app.delete('/delete_echo/' + str(quote.id) + '/' + str(RandomUsers.deepika['id']))
+        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
+        quote = Quote.query.all()[0]
+        assert len(quote.echoers) == 0
+        assert len(user.quotes_echoed) == 0
+
+        print "\n-------- end test add/delete echo ---------\n"
 
 
     def test_get_quote(self):
@@ -396,6 +403,16 @@ class ApplicationTestCase(unittest.TestCase):
         rv = json.loads(rv.data)
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
         assert rv['num_echoes'] == 2
+        ## remove echoes
+        rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.deepika['id'])) # remove deepika's echo
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
+        rv = json.loads(rv.data)
+        assert rv['num_echoes'] == 1   # verify count
+        rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.zdravko['id'])) # remove zdravko's echo
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
+        rv = json.loads(rv.data)
+        assert rv['num_echoes'] == 0   # verify
+        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art) # make sure quote hasn't changed
 
         print "\n------- end test get quote ---- \n"
 
@@ -576,15 +593,33 @@ class ApplicationTestCase(unittest.TestCase):
         rv_list = json.loads(rv.data)
         assert len(rv_list) == 0
 
-        ## test single echo 
+        ## test two echoes on a single quote, then remove them 
+
+        ## add the first echo and see if zdravko sees it
         andanotherone = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first() # quote by george and deepika
-        echo = {'quoteId' : andanotherone.id, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
+        quoteId = str(andanotherone.id)
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        ## add second echo and see if there is no duplication
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
+        echo_dump = json.dumps(echo)
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id']) # and nothing should change for george i.e. he shouldn't see the same quote twice
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+
+        ## remove angela's echo and make sure zdravko can't see it anymore
+        rv = self.app.delete('/delete_echo/' + quoteId + '/' + str(RandomUsers.angela['id']))
+        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
 
         ## TODO perhaps create a more intricate test case for echoing although this should be good for now 
 

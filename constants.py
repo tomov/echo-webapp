@@ -23,3 +23,4 @@ class SuccessMessages:
     COMMENT_ADDED = "Comment was added successfully!"
     USER_UPDATED = "User was updated successfully!"
     ECHO_ADDED = "Quote was echoed successfully!"
+    ECHO_DELETED = "Quote was unechoed successfully!"
