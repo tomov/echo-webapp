@@ -294,6 +294,21 @@ def get_quote():
     return dump
 
 
+@app.route('/get_quotes_with_ids', methods = ['post'])
+def get_quotes_with_ids():
+    ids = json.loads(request.form['data'])
+
+    result = []
+    for id in ids:
+        quote = Quote.query.filter_by(id = id).first()
+        if not quote:
+            result.append(None)
+        else:
+            result.append(quote_dict_from_obj(quote))
+
+    return json.dumps(result)
+
+
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
     fbid = request.args.get('fbid')

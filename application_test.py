@@ -136,11 +136,15 @@ class ApplicationTestCase(unittest.TestCase):
         assert int(quote['timestamp']) > 1000000
         assert int(quote['_id']) > 0
 
-    def assert_is_same_list_of_quotes(self, quotes, json_list):
+    def assert_is_same_list_of_quotes(self, quotes, json_list, reverse = True):
         assert len(quotes) == len(json_list)
-        quotes = sorted(quotes, key = lambda k: k['_id']) # in increasing order... for convenience
+        if reverse:
+            json_list.reverse()
         for quote, json in zip(quotes, json_list):
-            self.assert_is_same_quote_jsononly(quote, json)
+            if not quote:
+                assert not json
+            else:
+                self.assert_is_same_quote_jsononly(quote, json)
 
      ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
     def assert_is_same_comment_jsononly(self, comment, json, is_friend):
@@ -472,6 +476,54 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art) # make sure quote hasn't changed
 
         print "\n------- end test get quote ---- \n"
+
+
+    def test_get_quotes_with_ids(self):
+        print "\n ------ start test  get quotes with ids -----\n"
+
+        ## insert users (note this is copy pasted from test_get_quotes)
+        assert len(User.query.all()) == 0
+        george_dump = json.dumps(RandomUsers.george)
+        deepika_dump = json.dumps(RandomUsers.deepika)
+        angela_dump = json.dumps(RandomUsers.angela)
+        zdravko_dump = json.dumps(RandomUsers.zdravko)
+        rv = self.app.post('/add_user', data = dict(data=george_dump))
+        rv = self.app.post('/add_user', data = dict(data=deepika_dump))
+        rv = self.app.post('/add_user', data = dict(data=angela_dump))
+        rv = self.app.post('/add_user', data = dict(data=zdravko_dump))
+        assert len(User.query.all()) == 7 # hardcoded for clarity and extra security
+        assert len(User.query.filter(User.registered == True).all()) == 4
+
+        ## insert quote by george (reporter) and angela (source)
+        assert len(Quote.query.all()) == 0
+        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=contemporary_art))
+        ## insert quote by angela (reporter) and george (source)
+        girlfriend = json.dumps(RandomQuotes.girlfriend)
+        time.sleep(1) # so the created field is different
+        rv = self.app.post('/add_quote', data = dict(data=girlfriend))
+        ## insert quote by angela (reporter) and cameron (source)
+        anotherquote = json.dumps(RandomQuotes.anotherquote)
+        time.sleep(1)
+        rv = self.app.post('/add_quote', data = dict(data=anotherquote))
+        ## insert quote by deepika (reporter) and george (source)
+        andanotherone = json.dumps(RandomQuotes.andanotherone)
+        time.sleep(1)
+        rv = self.app.post('/add_quote', data = dict(data=andanotherone))
+
+        ## try to get some quotes
+        ids_dump = json.dumps([1, 2, 4])
+        rv = self.app.post('/get_quotes_with_ids', data = dict(data=ids_dump))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone], False)
+
+        ## try with invalid ids and duplicates
+        ids_dump = json.dumps([1, 10, 2, 4, 39, 30, 1])
+        rv = self.app.post('/get_quotes_with_ids', data = dict(data=ids_dump))
+        rv_list = json.loads(rv.data)
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, None, RandomQuotes.girlfriend, RandomQuotes.andanotherone, None, None, RandomQuotes.contemporary_art], False)
+
+        print "\n ------ end test get quotes with ids ----\n"
 
 
     def test_get_quotes(self):
