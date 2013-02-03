@@ -12,7 +12,7 @@ from copy import copy
 import application
 import model
 from model import db
-from model import User, Quote, Comment
+from model import User, Quote, Comment, Favorite
 from constants import *
 from test_data import *
 from util import *
@@ -162,6 +162,10 @@ class ApplicationTestCase(unittest.TestCase):
         assert quote_id == json['quoteId']
         assert int(comment['timestamp']) > 1000000
         assert int(comment['id']) > 0
+
+    def assert_is_same_fav(self, favorite, json):
+        assert favorite.quote.id == json["quoteId"]
+        assert int(favorite.user.fbid) == json["fbid"]
 
  
 # ----------------------------------------------------------------------
@@ -354,9 +358,8 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n ----- end test single comment ---- \n"
 
-
     def test_add_delete_echo(self):
-        print "\n---------- being test add/delete echo -----\n"
+        print "\n---------- begin test add/delete echo -----\n"
 
         ## add user and quote
         george_dump = json.dumps(RandomUsers.george)
@@ -391,11 +394,47 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end test add/delete echo ---------\n"
 
+    def test_add_fav(self):
+        print "\n----- begin test add fav -----\n"
+
+        ## add user and 2 quotes
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data = george_dump))
+
+        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data = contemporary_art))
+       
+        girlfriend = json.dumps(RandomQuotes.girlfriend)
+        rv = self.app.post('/add_quote', data = dict(data = girlfriend))
+        ##for quote in Quote.query.all():
+        ##    print quote.content
+
+        ## simulate a favorite being added and verify
+        assert len(Favorite.query.all()) == 0
+        ironicfav = json.dumps(RandomFavorites.ironicfav)
+        rv = self.app.post('/add_fav', data = dict(data = ironicfav))
+        assert len(Favorite.query.all()) == 1
+
+        ## make sure if george favorites this quote again, nothin' happens
+        rv = self.app.post('/add_fav', data = dict(data = ironicfav))
+        assert len(Favorite.query.all()) == 1 ## shouldn't change
+
+        ## george favorites a different quote and shit happens!
+        coolquotedude = json.dumps(RandomFavorites.coolquotedude)
+        rv = self.app.post('/add_fav', data = dict(data = coolquotedude))
+        assert len(Favorite.query.all()) == 2
+
+        ## then let's make sure our favorite is the same as the test data
+        favorite = Favorite.query.filter_by(quote_id = 1).first()
+        assert favorite
+        self.assert_is_same_fav(favorite, RandomFavorites.coolquotedude)
+
+        print "\n ----- end test add fav ---- \n"
 
     def test_get_quote(self):
         print "\n-------- begin test get quote ---\n"
 
-        ## add users, quote, a bunch of comments, favorites, and echoes
+        ## add users, quote, a bunch of comments, and echoes
         george_dump = json.dumps(RandomUsers.george)
         self.app.post('/add_user', data = dict(data=george_dump))
         zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and echoes
@@ -409,6 +448,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
         assert len(rv['comments']) == 0
         assert rv['num_echoes'] == 0
+        assert rv['num_favs'] == 0
 
         ## now add some comments
         comment_dump = json.dumps(RandomComments.thissucks)
@@ -419,6 +459,12 @@ class ApplicationTestCase(unittest.TestCase):
         comment_dump = json.dumps(RandomComments.angelayousuck) # this comment is not by a friend of george, so additional info must be returned for him by get_quote
         time.sleep(1) # b/c we order by created, we need to have different create times
         rv = self.app.post('/add_comment', data = dict(data=comment_dump))
+
+        ## add some favorites now
+        fav_dump = json.dumps(RandomFavorites.coolquotedude)
+        rv = self.app.post('/add_fav', data = dict(data=fav_dump))
+        fav_dump = json.dumps(RandomFavorites.anotherfav)
+        rv = self.app.post('/add_fav', data = dict(data=fav_dump))
 
         ## make sure the correct quote is returned again
         rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
@@ -474,6 +520,7 @@ class ApplicationTestCase(unittest.TestCase):
         rv = json.loads(rv.data)
         assert rv['num_echoes'] == 0   # verify
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art) # make sure quote hasn't changed
+        assert rv['num_favs'] == 2 # make sure num_favs is correct
 
         print "\n------- end test get quote ---- \n"
 

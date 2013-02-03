@@ -306,3 +306,21 @@ class RandomComments:
         "comment": "Angela you suck!"
     }
 
+
+class RandomFavorites:
+    coolquotedude = {
+        "quoteId": 1, 
+        "fbid": 100002537919668
+    }
+    ironicfav = {
+        "quoteId": 2,
+        "fbid": 100002537919668
+    }
+    anotherfav = {
+        "quoteId": 1, 
+        "fbid": 100002505656933
+    }
+
+
+
+    

@@ -18,6 +18,7 @@ class ErrorMessages:
     USERS_NOT_FRIENDS = "Users are not friends"
     QUOTE_NOT_FOUND = "Quote with given id does not exist"
     COMMENT_NOT_FOUND = "Comment with given id does not exist"
+    FAV_ALREADY_EXISTS = "User has already favorited this quote"
 
 class SuccessMessages:
     USER_ADDED = "User was added successfully!"
@@ -29,3 +30,4 @@ class SuccessMessages:
     USER_UPDATED = "User was updated successfully!"
     ECHO_ADDED = "Quote was echoed successfully!"
     ECHO_DELETED = "Quote was unechoed successfully!"
+    FAV_ADDED = "Favorite was added successfully!"

@@ -8,7 +8,7 @@ from pprint import pprint
 
 import model
 from model import db
-from model import User, Quote, Comment
+from model import User, Quote, Comment, Favorite
 from model import create_db
 from constants import *
 from util import *
@@ -172,7 +172,6 @@ def add_comment():
     db.session.commit()
     return SuccessMessages.COMMENT_ADDED 
 
-
 @app.route("/add_echo", methods = ['POST'])
 def add_echo():
     data = json.loads(request.form['data'])
@@ -212,6 +211,7 @@ def delete_echo(quoteId, userFbid):
     user = User.query.filter_by(fbid = userFbid).first()
     if not user:
         return ErrorMessages.USER_NOT_FOUND
+
     quote = Quote.query.filter_by(id = quoteId).first()
     if not quote:
         return ErrorMessages.QUOTE_NOT_FOUND
@@ -255,6 +255,32 @@ def delete_comment(commentId):
 #-------------------------------------------
 
 
+@app.route("/add_fav", methods = ['POST'])
+def add_fav():
+    qdata = json.loads(request.form['data'])
+    quoteId = qdata['quoteId']
+    userFbid = qdata['fbid']
+
+    user = User.query.filter_by(fbid = userFbid).first()
+    if not user:
+        return ErrorMessages.USER_NOT_FOUND 
+    userId = user.id
+
+    quote = Quote.query.filter_by(id = quoteId).first()
+    if not quote:
+        return ErrorMessages.QUOTE_NOT_FOUND
+
+    ## see if the favorite is already logged
+    favorite = Favorite.query.filter_by(quote_id = quoteId, user_id = userId).first()
+    if favorite:
+        return ErrorMessages.FAV_ALREADY_EXISTS
+
+    favorite = Favorite(quote)
+    user.fav_quotes.append(favorite)
+
+    db.session.commit()
+    return SuccessMessages.FAV_ADDED     
+
 def quote_dict_from_obj(quote):
     quote_res = dict()
     quote_res['_id'] = str(quote.id)
@@ -280,9 +306,10 @@ def get_quote():
     user = User.query.filter_by(fbid = userFbid).first()
     if not user:
         return ErrorMessages.USER_NOT_FOUND
-    friends_fbids = dict()
+
+    friends_ids = dict()
     for friend in user.friends:
-        friends_fbids[friend.id] = 1
+        friends_ids[friend.id] = 1
 
     quote_res = quote_dict_from_obj(quote)
 
@@ -294,14 +321,15 @@ def get_quote():
         comment_res['fbid'] = comment.user.fbid
         comment_res['timestamp'] = time.mktime(comment.created.timetuple())
         comment_res['comment'] = comment.content
-        if comment.user_id not in friends_fbids:
+        if comment.user_id not in friends_ids:
             comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
             comment_res['picture_url'] = comment.user.picture_url
         quote_res['comments'].append(comment_res)
 
+    quote_res['num_favs'] = len(quote.fav_users)
+
     dump = json.dumps(quote_res)
     return dump
-
 
 @app.route('/get_quotes_with_ids', methods = ['post'])
 def get_quotes_with_ids():
@@ -316,7 +344,6 @@ def get_quotes_with_ids():
             result.append(quote_dict_from_obj(quote))
 
     return json.dumps(result)
-
 
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():

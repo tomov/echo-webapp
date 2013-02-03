@@ -34,6 +34,7 @@ class User(db.Model):
     picture_url = db.Column(db.Text)
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
+    fav_quotes = db.relationship('Favorite', backref = 'user')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
@@ -101,6 +102,21 @@ class Quote(db.Model):
     def __repr__(self):
         return '<Quote %r>' % self.content
 
+class Favorite(db.Model):
+    __tablename__ = 'favorites'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), primary_key = True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key = True)
+    quote = db.relationship("Quote", backref = "fav_users")
+    def __init__(self, quote):
+        self.quote = quote
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<Favorite [Quote %r] [User %r]>' % (self.quote.id, self.user.id)
 
 class Comment(db.Model):
     __tablename__ = 'comments'
