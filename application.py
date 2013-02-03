@@ -211,6 +211,7 @@ def delete_echo(quoteId, userFbid):
     db.session.commit()
     return SuccessMessages.ECHO_DELETED
 
+
 @app.route("/delete_friendship/<aFbid>/<bFbid>", methods = ['DELETE'])
 def delete_friendship(aFbid, bFbid):
     userA = User.query.filter_by(fbid = aFbid).first()
@@ -226,6 +227,18 @@ def delete_friendship(aFbid, bFbid):
         userB.friends.remove(userA)
     db.session.commit()
     return SuccessMessages.FRIENDSHIP_DELETED
+
+
+@app.route("/delete_comment/<commentId>", methods = ['DELETE'])
+def delete_comment(commentId):
+    comment = Comment.query.filter_by(id = commentId).first()
+    if not comment:
+        return ErrorMessages.COMMENT_NOT_FOUND
+
+    db.session.delete(comment)
+    db.session.commit()
+    return SuccessMessages.COMMENT_DELETED
+
 
 
 #-------------------------------------------

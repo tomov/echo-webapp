@@ -326,7 +326,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------ end test add delete quote ------\n"
 
 
-    def test_add_comment(self):
+    def test_add_delete_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -343,6 +343,10 @@ class ApplicationTestCase(unittest.TestCase):
 
         comment = Comment.query.all()[0]
         self.assert_is_same_comment(comment, RandomComments.thissucks)
+
+        ## delete comment
+        rv = self.app.delete('/delete_comment/' + str(comment.id))
+        assert len(Comment.query.all()) == 0
 
         print "\n ----- end test single comment ---- \n"
 
@@ -423,6 +427,26 @@ class ApplicationTestCase(unittest.TestCase):
         self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.thissucks, True)
         self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.funnyquote, True)
         self.assert_is_same_comment_jsononly(rv['comments'][2], RandomComments.angelayousuck, False)
+
+        ## remove some comments
+        ## remove middle comment
+        comm1id = rv['comments'][0]['id']
+        comm2id = rv['comments'][1]['id']
+        comm3id = rv['comments'][2]['id']
+        rv = self.app.delete('/delete_comment/' + str(comm2id))
+        ## make sure it's gone from the quote 
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        rv = json.loads(rv.data)
+        assert len(rv['comments']) == 2
+        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.thissucks, True)
+        self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.angelayousuck, False)
+        ## remove oldest comment
+        rv = self.app.delete('/delete_comment/' + str(comm1id))
+        ## make sure it's gone from the quote 
+        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        rv = json.loads(rv.data)
+        assert len(rv['comments']) == 1
+        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.angelayousuck, False)
 
         ## now add some echoes
         echo = {'quoteId' : 1, 'userFbid' : RandomUsers.deepika['id']}
