@@ -121,7 +121,7 @@ class Favorite(db.Model):
     modified = db.Column(db.DateTime)
     quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), primary_key = True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key = True)
-    quote = db.relationship("Quote", backref = "fav_users")
+    quote = db.relationship("Quote", backref="fav_users")
     def __init__(self, quote):
         self.quote = quote
         self.created = datetime.utcnow()

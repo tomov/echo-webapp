@@ -21,6 +21,7 @@ class ErrorMessages:
     FAV_ALREADY_EXISTS = "User has already favorited this quote"
     ECHO_ALREADY_EXISTS = "User has already echoed this quote"
     ECHO_EXISTENTIAL_CRISIS = "This echo does not exist"
+    FAV_EXISTENTIAL_CRISIS = "This favorite doesn't exist"
 
 class SuccessMessages:
     FRIENDSHIP_ADDED = "Users friended successfully!";
@@ -34,3 +35,4 @@ class SuccessMessages:
     ECHO_ADDED = "Quote was echoed successfully!"
     ECHO_DELETED = "Quote was unechoed successfully!"
     FAV_ADDED = "Favorite was added successfully!"
+    FAV_DELETED = "Favorite was deleted successfully!"
