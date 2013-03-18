@@ -52,6 +52,7 @@ def add_friends(user, friends_raw):
             friend = User(friend_fbid, None, friend_first, friend_last, friend_picture_url,  None, False)
             db.session.add(friend)
         user.friends.append(friend)
+    return format_response(SuccessMessages.FRIENDSHIP_ADDED);
 
 @app.route("/add_user", methods = ['POST'])
 def add_user():
@@ -62,22 +63,26 @@ def add_user():
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
 
-    user = User.query.filter_by(fbid = fbid).first()
-    if not user:
-        # user does not exist -- create one
-        user = User(fbid, email, first_name, last_name, picture_url, None, True)
-        add_friends(user, friends_raw)
-        db.session.add(user)
-    elif user.registered == False:
-        # user was pre-signed up by a friend but that's the first time she's logging in
-        user.registered = True
-        user.email = email
-        add_friends(user, friends_raw) # TODO sep thread?
-    else:
-        return ErrorMessages.USER_IS_ALREADY_REGISTERED # must call update_user
+    try:
+        user = User.query.filter_by(fbid = fbid).first()
+        if not user:
+            # user does not exist -- create one
+            user = User(fbid, email, first_name, last_name, picture_url, None, True)
+            add_friends(user, friends_raw)
+            db.session.add(user)
+        elif user.registered == False:
+            # user was pre-signed up by a friend but that's the first time she's logging in
+            user.registered = True
+            user.email = email
+            add_friends(user, friends_raw) # TODO sep thread?
+        else:
+            raise ServerException(ErrorMessages.USER_IS_ALREADY_REGISTERED, \
+                ServerException.ER_BAD_USER) # must call update_user instead
 
-    db.session.commit()
-    return SuccessMessages.USER_ADDED 
+        db.session.commit()
+        return format_response(SuccessMessages.USER_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
 
 @app.route("/update_user", methods = ['POST'])
 def update_user():
@@ -97,28 +102,32 @@ def update_user():
     if 'friends' in udata:
         friends_raw = udata['friends']
 
-    user = User.query.filter_by(fbid = fbid).first()
-    if not user:
-        # user does not exist -- must call add_user
-        return ErrorMessages.USER_NOT_FOUND
-    elif user.registered == False:
-        # user was pre-signed up by a friend but that's the first time she's logging in -- must call add_user
-        return ErrorMessages.USER_NOT_REGISTERED
-    else:
-        if picture_url:
-            user.picture_url = picture_url
-        if email:
-            user.email = email
-        if first_name:
-            user.first_name = first_name
-        if last_name:
-            user.last_name = last_name
-        if friends_raw:
-            add_friends(user, friends_raw) # TODO sep thread? also what if you add the same friendship multiple times?
+    try:
+        user = User.query.filter_by(fbid = fbid).first()
+        if not user:
+            # user does not exist -- must call add_user
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        elif user.registered == False:
+            # user was pre-signed up by a friend but that's the first time she's logging in -- must call add_user
+            raise ServerException(ErrorMessages.USER_NOT_REGISTERED, \
+                ServerException.ER_BAD_USER)
+        else:
+            if picture_url:
+                user.picture_url = picture_url
+            if email:
+                user.email = email
+            if first_name:
+                user.first_name = first_name
+            if last_name:
+                user.last_name = last_name
+            if friends_raw:
+                add_friends(user, friends_raw) # TODO sep thread? also what if you add the same friendship multiple times?
 
-    db.session.commit()
-    return SuccessMessages.USER_UPDATED 
-
+        db.session.commit()
+        return format_response(SuccessMessages.USER_UPDATED) 
+    except ServerException as e:
+        return format_response(None, e)
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
@@ -136,21 +145,24 @@ def add_quote():
         location_long = None
     content = qdata['quote']
 
-    print ' ADD QUOTE '
+    try:
+        source = User.query.filter_by(fbid = sourceFbid).first()
+        reporter = User.query.filter_by(fbid = reporterFbid).first()
+        if not source:
+            raise ServerException(ErrorMessages.SOURCE_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        if not reporter:
+            raise ServerException(ErrorMessages.REPORTER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
 
-    source = User.query.filter_by(fbid = sourceFbid).first()
-    reporter = User.query.filter_by(fbid = reporterFbid).first()
-    if not source:
-        return ErrorMessages.SOURCE_NOT_FOUND 
-    if not reporter:
-        return ErrorMessages.REPORTER_NOT_FOUND 
-
-    quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
- 
-    pprint(quote)
-    db.session.add(quote)
-    db.session.commit()
-    return SuccessMessages.QUOTE_ADDED 
+        quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
+     
+        pprint(quote)
+        db.session.add(quote)
+        db.session.commit()
+        return format_response(SuccessMessages.QUOTE_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 @app.route("/add_comment", methods = ['POST'])
@@ -160,17 +172,22 @@ def add_comment():
     userFbid = qdata['userFbid']
     content = qdata['comment']
 
-    user = User.query.filter_by(fbid = userFbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND 
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    comment = Comment(user.id, quote.id, content)
-    db.session.add(comment)
-    db.session.commit()
-    return SuccessMessages.COMMENT_ADDED 
+        comment = Comment(user.id, quote.id, content)
+        db.session.add(comment)
+        db.session.commit()
+        return format_response(SuccessMessages.COMMENT_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
 
 @app.route("/add_echo", methods = ['POST'])
 def add_echo():
@@ -178,18 +195,23 @@ def add_echo():
     quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
-    user = User.query.filter_by(fbid = userFbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND 
-    userId = user.id
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        userId = user.id
 
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    quote.echoers.append(user)
-    db.session.commit()
-    return SuccessMessages.ECHO_ADDED
+        quote.echoers.append(user)
+        db.session.commit()
+        return format_response(SuccessMessages.ECHO_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
 
 @app.route("/add_fav", methods = ['POST'])
 def add_fav():
@@ -197,25 +219,30 @@ def add_fav():
     quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
-    user = User.query.filter_by(fbid = userFbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND 
-    userId = user.id
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        userId = user.id
 
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    ## see if the favorite is already logged
-    favorite = Favorite.query.filter_by(quote_id = quoteId, user_id = userId).first()
-    if favorite:
-        return ErrorMessages.FAV_ALREADY_EXISTS
+        ## see if the favorite is already logged
+        favorite = Favorite.query.filter_by(quote_id = quoteId, user_id = userId).first()
+        if favorite:
+            raise ServerException(ErrorMessages.FAV_ALREADY_EXISTS, \
+                ServerException.ER_BAD_FAV)
 
-    favorite = Favorite(quote)
-    user.fav_quotes.append(favorite)
-
-    db.session.commit()
-    return SuccessMessages.FAV_ADDED     
+        favorite = Favorite(quote)
+        user.fav_quotes.append(favorite)
+        db.session.commit()
+        return format_response(SuccessMessages.FAV_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
     
 
 #-------------------------------------------
@@ -225,57 +252,74 @@ def add_fav():
 
 @app.route("/delete_quote/<quoteId>", methods = ['DELETE'])
 def delete_quote(quoteId):
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+    try:
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    db.session.delete(quote)
-    db.session.commit()
-    return SuccessMessages.QUOTE_DELETED
+        db.session.delete(quote)
+        db.session.commit()
+        return format_response(SuccessMessages.QUOTE_DELETED)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 @app.route("/delete_echo/<quoteId>/<userFbid>", methods = ['DELETE'])
 def delete_echo(quoteId, userFbid):
-    user = User.query.filter_by(fbid = userFbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
 
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    quote.echoers.remove(user)
-    db.session.commit()
-    return SuccessMessages.ECHO_DELETED
+        quote.echoers.remove(user)
+        db.session.commit()
+        return format_response(SuccessMessages.ECHO_DELETED)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 @app.route("/delete_friendship/<aFbid>/<bFbid>", methods = ['DELETE'])
 def delete_friendship(aFbid, bFbid):
-    userA = User.query.filter_by(fbid = aFbid).first()
-    if not userA:
-        return ErrorMessages.USER_NOT_FOUND
-    userB = User.query.filter_by(fbid = bFbid).first()
-    if not userB:
-        return ErrorMessages.USER_NOT_FOUND
+    try:
+        userA = User.query.filter_by(fbid = aFbid).first()
+        if not userA:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        userB = User.query.filter_by(fbid = bFbid).first()
+        if not userB:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
 
-    if userB in userA.friends:
-        userA.friends.remove(userB)
-    if userA in userB.friends:
-        userB.friends.remove(userA)
-    db.session.commit()
-    return SuccessMessages.FRIENDSHIP_DELETED
+        if userB in userA.friends:
+            userA.friends.remove(userB)
+        if userA in userB.friends:
+            userB.friends.remove(userA)
+        db.session.commit()
+        return format_response(SuccessMessages.FRIENDSHIP_DELETED)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 @app.route("/delete_comment/<commentId>", methods = ['DELETE'])
 def delete_comment(commentId):
-    comment = Comment.query.filter_by(id = commentId).first()
-    if not comment:
-        return ErrorMessages.COMMENT_NOT_FOUND
+    try:
+        comment = Comment.query.filter_by(id = commentId).first()
+        if not comment:
+            raise ServerException(ErrorMessages.COMMENT_NOT_FOUND, \
+                ServerException.ER_BAD_COMMENT)
 
-    db.session.delete(comment)
-    db.session.commit()
-    return SuccessMessages.COMMENT_DELETED
-
+        db.session.delete(comment)
+        db.session.commit()
+        return format_response(SuccessMessages.COMMENT_DELETED)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 #-------------------------------------------
@@ -301,37 +345,40 @@ def get_quote():
     quoteId = request.args.get('id')
     userFbid = request.args.get('userFbid')
 
-    quote = Quote.query.filter_by(id = quoteId).first()
-    if not quote:
-        return ErrorMessages.QUOTE_NOT_FOUND
+    try:
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
 
-    user = User.query.filter_by(fbid = userFbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
 
-    friends_ids = dict()
-    for friend in user.friends:
-        friends_ids[friend.id] = 1
+        friends_ids = dict()
+        for friend in user.friends:
+            friends_ids[friend.id] = 1
 
-    quote_res = quote_dict_from_obj(quote)
+        quote_res = quote_dict_from_obj(quote)
 
-    quote_res['comments'] = []
-    comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
-    for comment in comments:
-        comment_res = dict()
-        comment_res['id'] = comment.id
-        comment_res['fbid'] = comment.user.fbid
-        comment_res['timestamp'] = time.mktime(comment.created.timetuple())
-        comment_res['comment'] = comment.content
-        comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
-        comment_res['picture_url'] = comment.user.picture_url
-        comment_res['is_friend_or_me'] = comment.user_id in friends_ids or comment.user_id == user.id
-        quote_res['comments'].append(comment_res)
+        quote_res['comments'] = []
+        comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
+        for comment in comments:
+            comment_res = dict()
+            comment_res['id'] = comment.id
+            comment_res['fbid'] = comment.user.fbid
+            comment_res['timestamp'] = time.mktime(comment.created.timetuple())
+            comment_res['comment'] = comment.content
+            comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
+            comment_res['picture_url'] = comment.user.picture_url
+            comment_res['is_friend_or_me'] = comment.user_id in friends_ids or comment.user_id == user.id
+            quote_res['comments'].append(comment_res)
 
-    quote_res['num_favs'] = len(quote.fav_users)
-
-    dump = json.dumps(quote_res)
-    return dump
+        quote_res['num_favs'] = len(quote.fav_users)
+        return format_response(quote_res);
+    except ServerException as e:
+        return format_response(None, e);
 
 @app.route('/get_quotes_with_ids', methods = ['post'])
 def get_quotes_with_ids():
@@ -345,7 +392,7 @@ def get_quotes_with_ids():
         else:
             result.append(quote_dict_from_obj(quote))
 
-    return json.dumps(result)
+    return format_response(result)
 
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
@@ -357,53 +404,90 @@ def get_quotes():
     if not limit:
         limit = APIConstants.DEFAULT_GET_QUOTES_LIMIT
 
-    user = User.query.filter_by(fbid = fbid).first()
-    if not user:
-        return ErrorMessages.USER_NOT_FOUND
+    try:
+        user = User.query.filter_by(fbid = fbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
 
-    #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
-    #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
+        #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
+        #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
 
-    ## construct OR condition for which quotes to pick
-    if req_type == 'me':
-        ids = []
-    else:
-        ids = [friend.id for friend in user.friends]
-    ids.append(user.id)
-    or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids), Quote.echoers.any(User.id.in_(ids)))
+        ## construct OR condition for which quotes to pick
+        if req_type == 'me':
+            ids = []
+        else:
+            ids = [friend.id for friend in user.friends]
+        ids.append(user.id)
+        or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids), Quote.echoers.any(User.id.in_(ids)))
 
-    ## fetch quotes
-    if latest:
-        created = time.localtime(float(latest))
-        created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-        quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit)
-    elif oldest:
-        created = time.localtime(float(oldest))
-        created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-        quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit)
-    else:
-        quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit)
+        ## fetch quotes
+        if latest:
+            created = time.localtime(float(latest))
+            created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
+            quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit)
+        elif oldest:
+            created = time.localtime(float(oldest))
+            created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
+            quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit)
+        else:
+            quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit)
 
-    ## order them -- if quote was echoed, give it new date
-    # TODO
-    #for quote in quotes:
-        # TODO figure out how to   
-        #quote.created
-    sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
+        ## order them -- if quote was echoed, give it new date
+        # TODO
+        #for quote in quotes:
+            # TODO figure out how to   
+            #quote.created
+        sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
-    ## convert them to dictionary according to API specs
-    result = []
-    for quote in sorted_quotes:
-        quote_res = quote_dict_from_obj(quote)
-        # TODO is there a better way to do this? e.g. user in quote.fav_users
-        # tho it might be a heavier operation behind the scenes
-        quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
-        quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
-        result.append(quote_res)
+        ## convert them to dictionary according to API specs
+        result = []
+        for quote in sorted_quotes:
+            quote_res = quote_dict_from_obj(quote)
+            # TODO is there a better way to do this? e.g. user in quote.fav_users
+            # tho it might be a heavier operation behind the scenes
+            quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+            quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+            result.append(quote_res)
 
-    #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
-    dump = json.dumps(result)
-    return dump
+        #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
+        dump = json.dumps(result)
+        return format_response(result)
+    except ServerException as e:
+        return format_response(None, e)
+
+
+#-----------------------------
+# RESTful utils
+#------------------------------
+
+class ServerException(Exception):
+    ER_UNKNOWN     = 0
+    ER_BAD_QUOTE   = 1
+    ER_BAD_USER    = 2
+    ER_BAD_FAV     = 3
+    ER_BAD_COMMENT = 4
+
+    def __init__(self, message, n=ER_UNKNOWN):
+        self.message = message
+        self.n = n
+
+    def to_dict(self):
+        return {'errno' : self.n, 'message' : self.message}
+
+    def __str__(self):
+        return "[%d] %s" % self.message
+
+def format_response(ret=None, error=None):
+    if ret is None:
+        ret = {}
+    elif isinstance(ret, basestring):
+        ret = {'message' : ret}
+    if error:
+        assert isinstance(error, ServerException)
+        ret['error'] = error.to_dict() 
+    return json.dumps(ret)
+
 
 #---------------------------------------
 #  shit

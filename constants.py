@@ -23,6 +23,7 @@ class ErrorMessages:
     ECHO_EXISTENTIAL_CRISIS = "This echo does not exist"
 
 class SuccessMessages:
+    FRIENDSHIP_ADDED = "Users friended successfully!";
     USER_ADDED = "User was added successfully!"
     FRIENDSHIP_DELETED = "Users were unfriended successfully!"
     QUOTE_ADDED = "Quote was added successfully!"
