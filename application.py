@@ -388,7 +388,7 @@ def get_quotes():
     # TODO
     for quote in quotes:
         # TODO figure out how to   
-        #quote.created
+        quote.created
     sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
     ## convert them to dictionary according to API specs
