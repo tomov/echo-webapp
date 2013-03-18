@@ -150,14 +150,10 @@ class ApplicationTestCase(unittest.TestCase):
     def assert_is_same_comment_jsononly(self, comment, json, is_friend):
         assert str(comment['fbid']) == str(json['userFbid'])
         assert str(comment['comment']) == str(json['comment'])
-        if not is_friend:
-            user = User.query.filter_by(fbid = json['userFbid']).first()
-            assert user
-            assert comment['name'] == user.first_name + ' ' + user.last_name
-            assert comment['picture_url'] == user.picture_url
-        else:
-            assert 'name' not in comment
-            assert 'picture_url' not in comment 
+        user = User.query.filter_by(fbid = json['userFbid']).first()
+        assert user
+        assert comment['name'] == user.first_name + ' ' + user.last_name
+        assert comment['picture_url'] == user.picture_url
         quote_id = Comment.query.filter_by(id = comment['id']).first().quote_id
         assert quote_id == json['quoteId']
         assert int(comment['timestamp']) > 1000000
@@ -165,7 +161,7 @@ class ApplicationTestCase(unittest.TestCase):
 
     def assert_is_same_fav(self, favorite, json):
         assert favorite.quote.id == json["quoteId"]
-        assert int(favorite.user.fbid) == json["fbid"]
+        assert int(favorite.user.fbid) == json["userFbid"]
 
  
 # ----------------------------------------------------------------------
@@ -372,7 +368,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         ## add echo 
         assert len(quote.echoers) == 0
-        assert len(user.quotes_echoed) == 0
+        assert len(user.echoes) == 0
         echo = {'quoteId' : quote.id, 'userFbid' : RandomUsers.deepika['id']}
         echo_dump = json.dumps(echo)
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
@@ -381,16 +377,16 @@ class ApplicationTestCase(unittest.TestCase):
         user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
         quote = Quote.query.all()[0]
         assert len(quote.echoers) == 1
-        assert len(user.quotes_echoed) == 1
+        assert len(user.echoes) == 1
         assert quote.echoers[0].id == user.id
-        assert user.quotes_echoed[0].id == quote.id
+        assert user.echoes[0].id == quote.id
 
         ## remove echo and make sure it's gone
         rv = self.app.delete('/delete_echo/' + str(quote.id) + '/' + str(RandomUsers.deepika['id']))
         user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
         quote = Quote.query.all()[0]
         assert len(quote.echoers) == 0
-        assert len(user.quotes_echoed) == 0
+        assert len(user.echoes) == 0
 
         print "\n-------- end test add/delete echo ---------\n"
 
@@ -447,8 +443,8 @@ class ApplicationTestCase(unittest.TestCase):
         rv = json.loads(rv.data)
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
         assert len(rv['comments']) == 0
-        assert rv['num_echoes'] == 0
-        assert rv['num_favs'] == 0
+        assert rv['echo_count'] == 0
+        assert rv['fav_count'] == 0
 
         ## now add some comments
         comment_dump = json.dumps(RandomComments.thissucks)
@@ -509,18 +505,18 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
         rv = json.loads(rv.data)
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
-        assert rv['num_echoes'] == 2
+        assert rv['echo_count'] == 2
         ## remove echoes
         rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.deepika['id'])) # remove deepika's echo
         rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
         rv = json.loads(rv.data)
-        assert rv['num_echoes'] == 1   # verify count
+        assert rv['echo_count'] == 1   # verify count
         rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.zdravko['id'])) # remove zdravko's echo
         rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
         rv = json.loads(rv.data)
-        assert rv['num_echoes'] == 0   # verify
+        assert rv['echo_count'] == 0   # verify
         self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art) # make sure quote hasn't changed
-        assert rv['num_favs'] == 2 # make sure num_favs is correct
+        assert rv['fav_count'] == 2 # make sure fav_count is correct
 
         print "\n------- end test get quote ---- \n"
 

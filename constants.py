@@ -19,6 +19,8 @@ class ErrorMessages:
     QUOTE_NOT_FOUND = "Quote with given id does not exist"
     COMMENT_NOT_FOUND = "Comment with given id does not exist"
     FAV_ALREADY_EXISTS = "User has already favorited this quote"
+    ECHO_ALREADY_EXISTS = "User has already echoed this quote"
+    ECHO_EXISTENTIAL_CRISIS = "This echo does not exist"
 
 class SuccessMessages:
     USER_ADDED = "User was added successfully!"

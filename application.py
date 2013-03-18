@@ -8,7 +8,7 @@ from pprint import pprint
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite
+from model import User, Quote, Comment, Favorite, Echo
 from model import create_db
 from constants import *
 from util import *
@@ -174,13 +174,15 @@ def add_comment():
 
 @app.route("/add_echo", methods = ['POST'])
 def add_echo():
-    data = json.loads(request.form['data'])
-    quoteId = data['quoteId']
-    userFbid = data['userFbid']
+    qdata = json.loads(request.form['data'])
+    quoteId = qdata['quoteId']
+    userFbid = qdata['userFbid']
 
     user = User.query.filter_by(fbid = userFbid).first()
     if not user:
-        return ErrorMessages.USER_NOT_FOUND
+        return ErrorMessages.USER_NOT_FOUND 
+    userId = user.id
+
     quote = Quote.query.filter_by(id = quoteId).first()
     if not quote:
         return ErrorMessages.QUOTE_NOT_FOUND
@@ -193,7 +195,7 @@ def add_echo():
 def add_fav():
     qdata = json.loads(request.form['data'])
     quoteId = qdata['quoteId']
-    userFbid = qdata['fbid']
+    userFbid = qdata['userFbid']
 
     user = User.query.filter_by(fbid = userFbid).first()
     if not user:
@@ -290,7 +292,8 @@ def quote_dict_from_obj(quote):
     quote_res['location_lat'] = quote.location_lat
     quote_res['location_long'] = quote.location_long
     quote_res['quote'] = quote.content
-    quote_res['num_echoes'] = len(quote.echoers)
+    quote_res['echo_count'] = len(quote.echoers)
+    quote_res['fav_count'] = len(quote.fav_users)
     return quote_res
 
 @app.route("/get_quote", methods = ['get'])
@@ -360,7 +363,8 @@ def get_quotes():
 
     #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
     #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
-   
+
+    ## construct OR condition for which quotes to pick
     if req_type == 'me':
         ids = []
     else:
@@ -368,6 +372,7 @@ def get_quotes():
     ids.append(user.id)
     or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids), Quote.echoers.any(User.id.in_(ids)))
 
+    ## fetch quotes
     if latest:
         created = time.localtime(float(latest))
         created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
@@ -379,9 +384,21 @@ def get_quotes():
     else:
         quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit)
 
-    result = []
+    ## order them -- if quote was echoed, give it new date
+    # TODO
     for quote in quotes:
+        # TODO figure out how to   
+        #quote.created
+    sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
+
+    ## convert them to dictionary according to API specs
+    result = []
+    for quote in sorted_quotes:
         quote_res = quote_dict_from_obj(quote)
+        # TODO is there a better way to do this? e.g. user in quote.fav_users
+        # tho it might be a heavier operation behind the scenes
+        quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+        quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
         result.append(quote_res)
 
     #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries

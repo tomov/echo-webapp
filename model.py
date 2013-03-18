@@ -4,16 +4,9 @@ from sqlalchemy import select
 from constants import DatabaseConstants
 from sqlalchemy.orm import backref
 from sqlalchemy import desc
+from sqlalchemy.ext.associationproxy import association_proxy
 
 db = SQLAlchemy()
-
-# many-to-many from http://docs.sqlalchemy.org/en/latest/orm/relationships.html#many-to-many
-# alternatively, we could use an association object (same link) but there's no additional info to store at this point
-echoes = db.Table(
-    'echoes',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id')),
-    db.Column('quote_id', db.Integer, db.ForeignKey('quotes.id'))
-)
 
 # copied from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
 friendship = db.Table(
@@ -35,6 +28,7 @@ class User(db.Model):
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
     fav_quotes = db.relationship('Favorite', backref = 'user')
+    echoes = association_proxy('users_echoes', 'quote')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
@@ -83,8 +77,8 @@ class Quote(db.Model):
     location_lat = db.Column(db.Float(precision = 32))   # Note: this is in an alembic revison 
     location_long = db.Column(db.Float(precision = 32))  # Note: alembic
     deleted = db.Column(db.Boolean)
+    echoers = association_proxy('quotes_echoes', 'user');
     comments = db.relationship('Comment', backref = 'quote', lazy = 'dynamic')
-    echoers = db.relationship('User', secondary = echoes, backref = 'quotes_echoed')
     source = db.relationship('User', backref = 'quotes_sourced', foreign_keys = [source_id])
     reporter = db.relationship('User', backref = 'quotes_reported', foreign_keys = [reporter_id])
 
@@ -101,6 +95,24 @@ class Quote(db.Model):
 
     def __repr__(self):
         return '<Quote %r>' % self.content
+
+class Echo(db.Model):
+    __tablename__ = 'echoes'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), primary_key = True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key = True)
+    quote = db.relationship("Quote",
+        backref = backref("quotes_echoes", cascade="all, delete-orphan"))
+    user = db.relationship("User", backref = "users_echoes") 
+    def __init__(self, user):
+        self.user = user
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<Echo [Quote %r] [User %r]>' % (self.quote.id, self.user.id)
 
 class Favorite(db.Model):
     __tablename__ = 'favorites'
