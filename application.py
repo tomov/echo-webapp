@@ -55,7 +55,7 @@ def add_friends(user, friends_raw):
 
 @app.route("/add_user", methods = ['POST'])
 def add_user():
-    udata = json.loads(request.form['data'])
+    udata = json.loads(request.values.get('data'))
     fbid = udata['id']
     picture_url = udata['picture_url']
     email = udata['email']
@@ -81,7 +81,7 @@ def add_user():
 
 @app.route("/update_user", methods = ['POST'])
 def update_user():
-    udata = json.loads(request.form['data'])
+    udata = json.loads(request.values.get('data'))
     picture_url = None
     email = None
     first_name = None
@@ -122,7 +122,7 @@ def update_user():
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
-    qdata = json.loads(request.form['data'])
+    qdata = json.loads(request.values.get('data'))
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
     location = qdata['location']
@@ -155,7 +155,7 @@ def add_quote():
 
 @app.route("/add_comment", methods = ['POST'])
 def add_comment():
-    qdata = json.loads(request.form['data'])
+    qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
     content = qdata['comment']
@@ -174,7 +174,7 @@ def add_comment():
 
 @app.route("/add_echo", methods = ['POST'])
 def add_echo():
-    qdata = json.loads(request.form['data'])
+    qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
@@ -193,7 +193,7 @@ def add_echo():
 
 @app.route("/add_fav", methods = ['POST'])
 def add_fav():
-    qdata = json.loads(request.form['data'])
+    qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
@@ -335,7 +335,7 @@ def get_quote():
 
 @app.route('/get_quotes_with_ids', methods = ['post'])
 def get_quotes_with_ids():
-    ids = json.loads(request.form['data'])
+    ids = json.loads(request.values.get('data'))
 
     result = []
     for id in ids:
@@ -386,9 +386,9 @@ def get_quotes():
 
     ## order them -- if quote was echoed, give it new date
     # TODO
-    for quote in quotes:
+    #for quote in quotes:
         # TODO figure out how to   
-        quote.created
+        #quote.created
     sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
     ## convert them to dictionary according to API specs
@@ -405,6 +405,16 @@ def get_quotes():
     dump = json.dumps(result)
     return dump
 
+#---------------------------------------
+#  shit
+#---------------------------------------
+
+#this is for the Test UI, otherwise Chrome blocks cross-site referencing by javascript
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    return response
 
 #----------------------------------------
 # launch
