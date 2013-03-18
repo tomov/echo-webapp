@@ -320,9 +320,9 @@ def get_quote():
         comment_res['fbid'] = comment.user.fbid
         comment_res['timestamp'] = time.mktime(comment.created.timetuple())
         comment_res['comment'] = comment.content
-        if comment.user_id not in friends_ids:
-            comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
-            comment_res['picture_url'] = comment.user.picture_url
+        comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
+        comment_res['picture_url'] = comment.user.picture_url
+        comment_res['is_friend_or_me'] = comment.user_id in friends_ids or comment.user_id == user.id
         quote_res['comments'].append(comment_res)
 
     quote_res['num_favs'] = len(quote.fav_users)
