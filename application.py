@@ -145,6 +145,7 @@ def add_quote():
         location_long = None
     content = qdata['quote']
 
+    print 'askldjfkldfsjglkdsajflkdsjs <----'
     try:
         source = User.query.filter_by(fbid = sourceFbid).first()
         reporter = User.query.filter_by(fbid = reporterFbid).first()
@@ -361,6 +362,9 @@ def get_quote():
             friends_ids[friend.id] = 1
 
         quote_res = quote_dict_from_obj(quote)
+        # TODO code duplication... because of get_quotes_with_ids we can't just do this in quote_dict_from_obj but, should be a quick fix tho
+        quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+        quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
 
         quote_res['comments'] = []
         comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
@@ -375,7 +379,6 @@ def get_quote():
             comment_res['is_friend_or_me'] = comment.user_id in friends_ids or comment.user_id == user.id
             quote_res['comments'].append(comment_res)
 
-        quote_res['num_favs'] = len(quote.fav_users)
         return format_response(quote_res);
     except ServerException as e:
         return format_response(None, e);
@@ -497,7 +500,8 @@ def format_response(ret=None, error=None):
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    response.headers.add('Access-Control-Allow-Methods', 'DELETE, POST, GET, PUT, OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
     return response
 
 #----------------------------------------
