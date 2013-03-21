@@ -790,12 +790,15 @@ class ApplicationTestCase(unittest.TestCase):
         
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
         rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+        expected_echoed_quote = RandomQuotes.andanotherone.copy() # the echoed quote has reporterFbd = the echoer, not the original reporter
+        expected_echoed_quote['reporterFbid'] = RandomUsers.angela['id']
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, expected_echoed_quote])
         self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 1])
         ## check if is_echo field for single get_quote also works (probs not the right place for this but whatevs...we're not testing echoes anywhere else at this point) 
         rv = self.app.get('/get_quote?id=' + andanotheroneId + '&userFbid=' + RandomUsers.zdravko['id'])
         rv = json.loads(rv.data)
         assert rv['is_echo'] == 1
+        assert rv['reporterFbid'] == expected_echoed_quote['reporterFbid']
 
         ## add second echo and see if there is no duplication
         echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
@@ -855,7 +858,9 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
         rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+        expected_echoed_quote = RandomQuotes.andanotherone.copy() # the echoed quote has reporterFbd = the echoer, not the original reporter
+        expected_echoed_quote['reporterFbid'] = RandomUsers.angela['id']
+        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, expected_echoed_quote])
         ## now delete it and make sure zdravko can't see it
         rv = self.app.delete('/delete_quote/' + andanotheroneId)
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before

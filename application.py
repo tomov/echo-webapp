@@ -394,6 +394,7 @@ def get_quote():
             echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.created).first()
             quote_res['timestamp'] = datetime_to_timestamp(echo.created)
             quote_res['is_echo'] = 1
+            quote_res['reporterFbid'] = echo.user.fbid
 
         quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
         quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
@@ -480,6 +481,7 @@ def get_quotes():
                            wtf...... TODO figure out how to handle sublte bugs like this...\
                            can\'t assert and can\'t throw an exception, obviously'
                 quote.created = echo.created
+                quote.reporter = echo.user
         sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
         ## convert them to dictionary according to API specs
