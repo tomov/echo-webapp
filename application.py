@@ -145,7 +145,6 @@ def add_quote():
         location_long = None
     content = qdata['quote']
 
-    print 'askldjfkldfsjglkdsajflkdsjs <----'
     try:
         source = User.query.filter_by(fbid = sourceFbid).first()
         reporter = User.query.filter_by(fbid = reporterFbid).first()
@@ -158,7 +157,6 @@ def add_quote():
 
         quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
      
-        pprint(quote)
         db.session.add(quote)
         db.session.commit()
         return format_response(SuccessMessages.QUOTE_ADDED)
@@ -330,7 +328,7 @@ def delete_comment(commentId):
 def quote_dict_from_obj(quote):
     quote_res = dict()
     quote_res['_id'] = str(quote.id)
-    quote_res['timestamp'] = time.mktime(quote.created.timetuple()) # doesn't jsonify
+    quote_res['timestamp'] = datetime_to_timestamp(quote.created) # doesn't jsonify
     quote_res['sourceFbid'] = quote.source.fbid
     quote_res['reporterFbid'] = quote.reporter.fbid
     quote_res['location'] = quote.location
@@ -372,7 +370,7 @@ def get_quote():
             comment_res = dict()
             comment_res['id'] = comment.id
             comment_res['fbid'] = comment.user.fbid
-            comment_res['timestamp'] = time.mktime(comment.created.timetuple())
+            comment_res['timestamp'] = datetime_to_timestamp(comment.created)
             comment_res['comment'] = comment.content
             comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
             comment_res['picture_url'] = comment.user.picture_url
@@ -428,29 +426,37 @@ def get_quotes():
         if latest:
             created = time.localtime(float(latest))
             created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-            quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit)
+            quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit).all()
         elif oldest:
             created = time.localtime(float(oldest))
             created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-            quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit)
+            quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit).all()
         else:
-            quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit)
+            quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit).all()
 
-        ## order them -- if quote was echoed, give it new date
-        # TODO
-        #for quote in quotes:
-            # TODO figure out how to   
-            #quote.created
+        ## figure out which quotes are echoes
+        are_echoes = [0] * len(quotes)
+        for i, quote in enumerate(quotes):
+            if quote.source_id not in ids and quote.reporter_id not in ids:
+                are_echoes[i] = 1
+                # TODO is this efficient? Maybe look into some crazy joins later on
+                echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.created).first()
+                if not echo:
+                    print 'DAMN there are no echoer friends when they should be!\
+                           wtf...... TODO figure out how to handle sublte bugs like this...\
+                           can\'t assert and can\'t throw an exception, obviously'
+                quote.created = echo.created
         sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
         ## convert them to dictionary according to API specs
         result = []
-        for quote in sorted_quotes:
+        for i, quote in enumerate(sorted_quotes):
             quote_res = quote_dict_from_obj(quote)
             # TODO is there a better way to do this? e.g. user in quote.fav_users
             # tho it might be a heavier operation behind the scenes
             quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
             quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+            quote_res['is_echo'] = are_echoes[i]
             result.append(quote_res)
 
         #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
@@ -487,7 +493,7 @@ def format_response(ret=None, error=None):
     elif isinstance(ret, basestring):
         ret = {'message' : ret}
     if error:
-        assert isinstance(error, ServerException)
+        #assert isinstance(error, ServerException)
         ret['error'] = error.to_dict() 
     return json.dumps(ret)
 

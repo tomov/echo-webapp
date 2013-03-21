@@ -146,6 +146,18 @@ class ApplicationTestCase(unittest.TestCase):
             else:
                 self.assert_is_same_quote_jsononly(quote, json)
 
+    # same as above but only test the is_echoed property; that's b/c this is subjective based on who is asking, so
+    # cannot be hardcoded in the test_data file and passed as part of the json
+    def assert_is_same_list_of_is_echoed(self, quotes, is_echo_list, reverse = True):
+        assert len(quotes) == len(is_echo_list)
+        if reverse:
+            is_echo_list.reverse()
+        for quote, is_echo in zip(quotes, is_echo_list):
+            if not quote:
+                assert not is_echo
+            else:
+                assert quote['is_echo'] == is_echo
+
      ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
     def assert_is_same_comment_jsononly(self, comment, json, is_friend):
         assert str(comment['fbid']) == str(json['userFbid'])
@@ -752,11 +764,13 @@ class ApplicationTestCase(unittest.TestCase):
         andanotheroneId = str(andanotherone.id)
         echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
         echo_dump = json.dumps(echo)
+        time.sleep(1) # so the echo has a different timestamp
         rv = self.app.post('/add_echo', data = dict(data=echo_dump))
         
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+        self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 1])
 
         ## add second echo and see if there is no duplication
         echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
@@ -766,6 +780,7 @@ class ApplicationTestCase(unittest.TestCase):
         rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id']) # and nothing should change for george i.e. he shouldn't see the same quote twice
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
+        self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 0])
 
         ## remove angela's echo and make sure zdravko can't see it anymore
         rv = self.app.delete('/delete_echo/' + andanotheroneId + '/' + str(RandomUsers.angela['id']))

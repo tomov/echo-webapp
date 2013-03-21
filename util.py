@@ -1,3 +1,5 @@
+import time
+
 def split_name(name):
     names = name.encode('utf-8').split(" ")
     if len(names) == 0:
@@ -6,5 +8,6 @@ def split_name(name):
         return names[0], ""
     return names[0], names[len(names) - 1]
 
-
+def datetime_to_timestamp(date):
+    return time.mktime(date.timetuple())
 
