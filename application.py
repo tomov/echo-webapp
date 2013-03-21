@@ -13,6 +13,8 @@ from model import create_db
 from constants import *
 from util import *
 
+from apns import APNs, Payload
+
 #----------------------------------------
 # initialization
 #----------------------------------------
@@ -27,6 +29,9 @@ app.config.update(
 app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI 
 db.init_app(app)
 
+# open persistent connection to gateway (and feedback) server for push notifications
+apns = APNs(use_sandbox=True, cert_file='certificates/EchoAPNDevCert.pem', key_file='certificates/EchoAPNDevKey.pem')
+
 #----------------------------------------
 # controllers
 #----------------------------------------
@@ -34,7 +39,6 @@ db.init_app(app)
 @app.route("/")
 def hello():
     return "Hello from Python yay!"
-
 
 #---------------------------------------
 #         POST REQUESTS
