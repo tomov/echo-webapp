@@ -383,12 +383,18 @@ def get_quote():
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
-        friends_ids = dict()
-        for friend in user.friends:
-            friends_ids[friend.id] = 1
-
+        # TODO there is some code duplication with get_quotes below... we should think if it could be avoided
         quote_res = quote_dict_from_obj(quote)
-        # TODO code duplication... because of get_quotes_with_ids we can't just do this in quote_dict_from_obj but, should be a quick fix tho
+
+        #check if quote is echo
+        ids = [friend.id for friend in user.friends]
+        ids.append(user.id)
+        quote_res['is_echo'] = 0
+        if quote.source_id not in ids and quote.reporter_id not in ids: 
+            echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.created).first()
+            quote_res['timestamp'] = datetime_to_timestamp(echo.created)
+            quote_res['is_echo'] = 1
+
         quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
         quote_res['user_did_echo'] = Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
 
@@ -402,7 +408,7 @@ def get_quote():
             comment_res['comment'] = comment.content
             comment_res['name'] = comment.user.first_name + ' ' + comment.user.last_name
             comment_res['picture_url'] = comment.user.picture_url
-            comment_res['is_friend_or_me'] = comment.user_id in friends_ids or comment.user_id == user.id
+            comment_res['is_friend_or_me'] = comment.user_id in ids
             quote_res['comments'].append(comment_res)
 
         return format_response(quote_res);

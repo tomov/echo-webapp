@@ -792,6 +792,10 @@ class ApplicationTestCase(unittest.TestCase):
         rv_list = json.loads(rv.data)
         self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
         self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 1])
+        ## check if is_echo field for single get_quote also works (probs not the right place for this but whatevs...we're not testing echoes anywhere else at this point) 
+        rv = self.app.get('/get_quote?id=' + andanotheroneId + '&userFbid=' + RandomUsers.zdravko['id'])
+        rv = json.loads(rv.data)
+        assert rv['is_echo'] == 1
 
         ## add second echo and see if there is no duplication
         echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
