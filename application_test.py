@@ -402,7 +402,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end test add/delete echo ---------\n"
 
-    def test_add_fav(self):
+    def test_add_delete_fav(self):
         print "\n----- begin test add fav -----\n"
 
         ## add user and 2 quotes
@@ -414,8 +414,6 @@ class ApplicationTestCase(unittest.TestCase):
        
         girlfriend = json.dumps(RandomQuotes.girlfriend)
         rv = self.app.post('/add_quote', data = dict(data = girlfriend))
-        ##for quote in Quote.query.all():
-        ##    print quote.content
 
         ## simulate a favorite being added and verify
         assert len(Favorite.query.all()) == 0
@@ -433,9 +431,32 @@ class ApplicationTestCase(unittest.TestCase):
         assert len(Favorite.query.all()) == 2
 
         ## then let's make sure our favorite is the same as the test data
-        favorite = Favorite.query.filter_by(quote_id = 1).first()
+        quoteId = 1
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        georgeId = george.id
+        favorite = Favorite.query.filter_by(quote_id = quoteId).first()
         assert favorite
         self.assert_is_same_fav(favorite, RandomFavorites.coolquotedude)
+
+        ## now let's delete it and make sure it goes away
+        rv = self.app.delete('/delete_fav/' + str(quoteId) + '/' + str(george.fbid))
+        assert len(Favorite.query.all()) == 1 
+        assert len(User.query.all()) == 5 # due to george's friends!
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()        
+        assert len(george.fav_quotes) == 1
+        assert len(Favorite.query.all()) == 1
+
+        ## make sure the correct one is deleted
+        favorite = Favorite.query.filter_by(quote_id = quoteId).first()
+        assert not favorite
+        assert len(Quote.query.filter_by(id = quoteId).first().fav_users) == 0
+
+        ## now we'll delete the other
+        quoteId = 2
+        rv = self.app.delete('/delete_fav/' + str(quoteId) + '/' + str(george.fbid))    
+        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()                     
+        assert len(george.fav_quotes) == 0
+        assert len(Favorite.query.all()) == 0      
 
         print "\n ----- end test add fav ---- \n"
 

@@ -321,6 +321,34 @@ def delete_comment(commentId):
         return format_response(None, e)
 
 
+@app.route("/delete_fav/<quoteId>/<userFbid>", methods = ['DELETE'])
+def remove_fav(quoteId, userFbid):
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        userId = user.id
+
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
+
+        ## see if the favorite is already logged
+        favorite = Favorite.query.filter_by(quote_id = quoteId, user_id = userId).first()
+        if not favorite:
+            raise ServerException(ErrorMessages.FAV_EXISTENTIAL_CRISIS, \
+                ServerException.ER_BAD_FAV)
+
+        db.session.delete(favorite)
+        db.session.commit()
+        return format_response(SuccessMessages.FAV_DELETED) 
+    except ServerException as e:
+        return format_response(None, e)
+
+     
+
 #-------------------------------------------
 #           GET REQUESTS
 #-------------------------------------------
