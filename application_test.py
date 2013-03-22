@@ -957,8 +957,16 @@ class ApplicationTestCase(unittest.TestCase):
         assert rv_list[2]['fbid'] == RandomUsers.zdravko['id']
         assert rv_list[3]['fbid'] == RandomUsers.george['id']
 
+    def test_register_token(self):
+        george_dump = json.dumps(RandomUsers.george)
+        rv = self.app.post('/add_user', data = dict(data=george_dump))
+        hex_token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        token = {'fbid' : RandomUsers.george['id'], 'token' : hex_token}
+        rv = self.app.post('/register_token', data = dict(data=json.dumps(token)))
 
-
+        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
+        assert user.fbid == RandomUsers.george['id']
+        assert user.device_token == hex_token # check whether it was stored in the db
 
 
 if __name__ == '__main__':

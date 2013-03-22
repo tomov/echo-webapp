@@ -248,6 +248,30 @@ def add_fav():
     except ServerException as e:
         return format_response(None, e)
     
+@app.route("/register_token", methods = ['POST'])
+def register_token():
+    qdata = json.loads(request.values.get('data'))
+    userFbid = qdata['fbid'] # not sure if we want to index by id or fbid
+    userDeviceToken = qdata['token']
+
+    print userDeviceToken
+
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessage.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        if userDeviceToken:
+            user.device_token = userDeviceToken
+
+        db.session.commit()
+
+        return format_response("Token Registered")
+
+    except ServerException as e:
+        return format_response(None, e)
+    
 
 #-------------------------------------------
 #           DELETE REQUESTS
