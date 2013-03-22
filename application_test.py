@@ -180,7 +180,7 @@ class ApplicationTestCase(unittest.TestCase):
 # Tests. Note: test functions must begin with "test" i.e. test_something
 # ----------------------------------------------------------------------
    
-    def test_util(self):
+    def _test_util(self):
         print "\n ------- begin test util ------\n"
 
         first, last = split_name('')
@@ -206,7 +206,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------- end test util ------- \n"
 
 
-    def test_add_user(self):
+    def _test_add_user(self):
         # insert a single user and make sure everything's correct
         print "\n------- begin single test -------\n"
 
@@ -222,7 +222,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n-------- end single test --------\n"
 
 
-    def test_update_user(self):
+    def _test_update_user(self):
         print "\n------- begin single test -------\n"
 
         # insert george so we can play with him
@@ -290,7 +290,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end single test --------\n"
  
-    def test_delete_friendship(self):
+    def _test_delete_friendship(self):
         print "\n ------ begin test delete friendship ---- \n"
 
         ## add george and zdravko (and their friends)
@@ -319,7 +319,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ----- end test delete friendship ------\n"
 
 
-    def test_add_delete_quote(self):
+    def _test_add_delete_quote(self):
         print "\n ------ begin test add delete quote ------\n"
 
         george_dump = json.dumps(RandomUsers.george)
@@ -342,7 +342,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------ end test add delete quote ------\n"
 
 
-    def test_add_delete_comment(self):
+    def _test_add_delete_comment(self):
         print "\n ---- begin test single comment ----- \n"
 
         ## add user and quote
@@ -366,7 +366,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n ----- end test single comment ---- \n"
 
-    def test_add_delete_echo(self):
+    def _test_add_delete_echo(self):
         print "\n---------- begin test add/delete echo -----\n"
 
         ## add user and quote
@@ -393,6 +393,13 @@ class ApplicationTestCase(unittest.TestCase):
         assert quote.echoers[0].id == user.id
         assert user.echoes[0].id == quote.id
 
+        ## add same echo, make sure it's not duplicated
+        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
+        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
+        quote = Quote.query.all()[0]
+        assert len(quote.echoers) == 1
+        assert len(user.echoes) == 1
+
         ## remove echo and make sure it's gone
         rv = self.app.delete('/delete_echo/' + str(quote.id) + '/' + str(RandomUsers.deepika['id']))
         user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
@@ -402,7 +409,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         print "\n-------- end test add/delete echo ---------\n"
 
-    def test_add_delete_fav(self):
+    def _test_add_delete_fav(self):
         print "\n----- begin test add fav -----\n"
 
         ## add user and 2 quotes
@@ -443,24 +450,24 @@ class ApplicationTestCase(unittest.TestCase):
         assert len(Favorite.query.all()) == 1 
         assert len(User.query.all()) == 5 # due to george's friends!
         george = User.query.filter_by(fbid = RandomUsers.george['id']).first()        
-        assert len(george.fav_quotes) == 1
+        assert len(george.favs) == 1
         assert len(Favorite.query.all()) == 1
 
         ## make sure the correct one is deleted
         favorite = Favorite.query.filter_by(quote_id = quoteId).first()
         assert not favorite
-        assert len(Quote.query.filter_by(id = quoteId).first().fav_users) == 0
+        assert len(Quote.query.filter_by(id = quoteId).first().favs) == 0
 
         ## now we'll delete the other
         quoteId = 2
         rv = self.app.delete('/delete_fav/' + str(quoteId) + '/' + str(george.fbid))    
         george = User.query.filter_by(fbid = RandomUsers.george['id']).first()                     
-        assert len(george.fav_quotes) == 0
+        assert len(george.favs) == 0
         assert len(Favorite.query.all()) == 0      
 
         print "\n ----- end test add fav ---- \n"
 
-    def test_get_quote(self):
+    def _test_get_quote(self):
         print "\n-------- begin test get quote ---\n"
 
         ## add users, quote, a bunch of comments, and echoes
@@ -554,7 +561,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n------- end test get quote ---- \n"
 
 
-    def test_get_quotes_with_ids(self):
+    def _test_get_quotes_with_ids(self):
         print "\n ------ start test  get quotes with ids -----\n"
 
         ## insert users (note this is copy pasted from test_get_quotes)
@@ -602,7 +609,7 @@ class ApplicationTestCase(unittest.TestCase):
         print "\n ------ end test get quotes with ids ----\n"
 
 
-    def test_get_quotes(self):
+    def _test_get_quotes(self):
         print "\n------- begin get quotes ------\n"
 
         ## insert users
@@ -879,6 +886,78 @@ class ApplicationTestCase(unittest.TestCase):
 
 
         print "\n -------end test get quotes --------\n"
+
+
+
+
+    def test_get_echoers(self):
+        print "\n------- begin get echoers ------\n"
+
+        ## add users, quote, a bunch of echoes 
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and echoes
+        self.app.post('/add_user', data = dict(data=zdravko_dump))
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+        quote = Quote.query.all()[0]
+        quoteId = quote.id
+
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']}
+        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']}
+        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.zdravko['id']} # should be able to echo too
+        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
+        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.george['id']} # should be able to echo too
+        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
+
+        rv = self.app.get('/get_echoers?quoteId=' + str(quoteId))
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 4
+        # TODO create a assert_is_same_list or whatevs once we agree on the API specifics and test for the other attributes too
+        # right now just makes sure that the fbids are the same, but not names, or whatever else we return
+        assert rv_list[0]['fbid'] == RandomUsers.deepika['id']
+        assert rv_list[1]['fbid'] == RandomUsers.angela['id']
+        assert rv_list[2]['fbid'] == RandomUsers.zdravko['id']
+        assert rv_list[3]['fbid'] == RandomUsers.george['id']
+
+
+
+    def test_get_favs(self):
+        # literally the same as test_get_echoers
+        print "\n------- begin get favs ------\n"
+
+        ## add users, quote, a bunch of favs 
+        george_dump = json.dumps(RandomUsers.george)
+        self.app.post('/add_user', data = dict(data=george_dump))
+        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and favorites
+        self.app.post('/add_user', data = dict(data=zdravko_dump))
+        quote_dump = json.dumps(RandomQuotes.contemporary_art)
+        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
+        quote = Quote.query.all()[0]
+        quoteId = quote.id
+
+        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']}
+        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
+        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']}
+        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
+        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.zdravko['id']} # should be able to fav too
+        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
+        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.george['id']} # should be able to fav too
+        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
+
+        rv = self.app.get('/get_favs?quoteId=' + str(quoteId))
+        rv_list = json.loads(rv.data)
+        assert len(rv_list) == 4
+        # TODO create a assert_is_same_list or whatevs once we agree on the API specifics and test for the other attributes too
+        # right now just makes sure that the fbids are the same, but not names, or whatever else we return
+        assert rv_list[0]['fbid'] == RandomUsers.deepika['id']
+        assert rv_list[1]['fbid'] == RandomUsers.angela['id']
+        assert rv_list[2]['fbid'] == RandomUsers.zdravko['id']
+        assert rv_list[3]['fbid'] == RandomUsers.george['id']
+
+
 
 
 

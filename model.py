@@ -5,6 +5,7 @@ from constants import DatabaseConstants
 from sqlalchemy.orm import backref
 from sqlalchemy import desc
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import UniqueConstraint
 
 db = SQLAlchemy()
 
@@ -27,7 +28,6 @@ class User(db.Model):
     picture_url = db.Column(db.Text)
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
-    fav_quotes = db.relationship('Favorite', backref = 'user')
     echoes = association_proxy('users_echoes', 'quote')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
@@ -106,6 +106,7 @@ class Echo(db.Model):
     quote = db.relationship("Quote",
         backref = backref("quotes_echoes", cascade="all, delete-orphan"))
     user = db.relationship("User", backref = "users_echoes") 
+    __table_args__ = (UniqueConstraint('quote_id', 'user_id', name='unique-echoer-quote-pair'), )
     def __init__(self, user):
         self.user = user
         self.created = datetime.utcnow()
@@ -121,7 +122,9 @@ class Favorite(db.Model):
     modified = db.Column(db.DateTime)
     quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), primary_key = True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key = True)
-    quote = db.relationship("Quote", backref="fav_users")
+    quote = db.relationship("Quote", backref="favs")
+    user = db.relationship("User", backref="favs")
+    __table_args__ = (UniqueConstraint('quote_id', 'user_id', name='unique-favorite'), )
     def __init__(self, quote):
         self.quote = quote
         self.created = datetime.utcnow()

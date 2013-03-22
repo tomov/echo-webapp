@@ -206,7 +206,8 @@ def add_echo():
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
 
-        quote.echoers.append(user)
+        if user not in quote.echoers:
+            quote.echoers.append(user)
         db.session.commit()
         return format_response(SuccessMessages.ECHO_ADDED)
     except ServerException as e:
@@ -237,7 +238,7 @@ def add_fav():
                 ServerException.ER_BAD_FAV)
 
         favorite = Favorite(quote)
-        user.fav_quotes.append(favorite)
+        user.favs.append(favorite)
         db.session.commit()
         return format_response(SuccessMessages.FAV_ADDED)
     except ServerException as e:
@@ -364,7 +365,7 @@ def quote_dict_from_obj(quote):
     quote_res['location_long'] = quote.location_long
     quote_res['quote'] = quote.content
     quote_res['echo_count'] = len(quote.echoers)
-    quote_res['fav_count'] = len(quote.fav_users)
+    quote_res['fav_count'] = len(quote.favs)
     return quote_res
 
 @app.route("/get_quote", methods = ['get'])
@@ -500,6 +501,53 @@ def get_quotes():
         return format_response(result)
     except ServerException as e:
         return format_response(None, e)
+
+@app.route("/get_echoers", methods = ['get'])
+def get_echoers():
+    quoteId = request.args.get('quoteId')
+
+    try:
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
+
+        result = []
+        for echoer in quote.echoers:
+            echoer_res = {
+                'first_name': echoer.first_name,
+                'last_name': echoer.last_name,
+                'fbid': echoer.fbid
+            }
+            result.append(echoer_res)
+
+        return format_response(result);
+    except ServerException as e:
+        return format_response(None, e);
+
+@app.route("/get_favs", methods = ['get'])
+def get_favs():
+    quoteId = request.args.get('quoteId')
+
+    try:
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
+
+        favs = Favorite.query.filter_by(quote_id = quoteId)
+        result = []
+        for fav in favs:
+            fav_res = {
+                'first_name': fav.user.first_name,
+                'last_name': fav.user.last_name,
+                'fbid': fav.user.fbid
+            }
+            result.append(fav_res)
+
+        return format_response(result);
+    except ServerException as e:
+        return format_response(None, e);
 
 
 #-----------------------------
