@@ -968,6 +968,8 @@ class ApplicationTestCase(unittest.TestCase):
         assert user.fbid == RandomUsers.george['id']
         assert user.device_token == hex_token # check whether it was stored in the db
 
+        # TODO: more comprehensive testing
+
 
 if __name__ == '__main__':
     unittest.main()

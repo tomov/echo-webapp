@@ -36,3 +36,4 @@ class SuccessMessages:
     ECHO_DELETED = "Quote was unechoed successfully!"
     FAV_ADDED = "Favorite was added successfully!"
     FAV_DELETED = "Favorite was deleted successfully!"
+    TOKEN_REGISTERED = "Device token was registered successfully!"

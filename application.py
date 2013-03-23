@@ -251,7 +251,7 @@ def add_fav():
 @app.route("/register_token", methods = ['POST'])
 def register_token():
     qdata = json.loads(request.values.get('data'))
-    userFbid = qdata['fbid'] # not sure if we want to index by id or fbid
+    userFbid = qdata['fbid']
     userDeviceToken = qdata['token']
 
     print userDeviceToken
@@ -267,7 +267,7 @@ def register_token():
 
         db.session.commit()
 
-        return format_response("Token Registered")
+        return format_response(SuccessMessages.TOKEN_REGISTERED))
 
     except ServerException as e:
         return format_response(None, e)
