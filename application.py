@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request
 import json
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 import time
 from sqlalchemy import desc
 from pprint import pprint
@@ -459,16 +459,22 @@ def get_quotes():
         or_conds = or_(Quote.source_id.in_(ids), Quote.reporter_id.in_(ids), Quote.echoers.any(User.id.in_(ids)))
 
         ## fetch quotes
-        if latest:
-            created = time.localtime(float(latest))
-            created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-            quotes = Quote.query.filter(or_conds, Quote.created > created).order_by(desc(Quote.created)).limit(limit).all()
+        if latest and oldest:
+            upper = int(latest)
+            lower = int(oldest) 
+            if lower > upper:
+                lower, upper = upper, lower
+            print 'oldest ' + str(oldest)
+            print 'latest ' + str(latest)
+            quotes = Quote.query.filter(or_conds, and_(Quote.id >= lower, Quote.id <= upper)).order_by(desc(Quote.id)).limit(limit).all()
+        elif latest:
+            lower = int(latest) 
+            quotes = Quote.query.filter(or_conds, Quote.id > lower).order_by(desc(Quote.id)).limit(limit).all()
         elif oldest:
-            created = time.localtime(float(oldest))
-            created = time.strftime(DatetimeConstants.MYSQL_DATETIME_FORMAT, created)
-            quotes = Quote.query.filter(or_conds, Quote.created < created).order_by(desc(Quote.created)).limit(limit).all()
+            upper = int(oldest)
+            quotes = Quote.query.filter(or_conds, Quote.id < upper).order_by(desc(Quote.id)).limit(limit).all()
         else:
-            quotes = Quote.query.filter(or_conds).order_by(desc(Quote.created)).limit(limit).all()
+            quotes = Quote.query.filter(or_conds).order_by(desc(Quote.id)).limit(limit).all()
 
         ## figure out which quotes are echoes
         are_echoes = [0] * len(quotes)
@@ -476,13 +482,14 @@ def get_quotes():
             if quote.source_id not in ids and quote.reporter_id not in ids:
                 are_echoes[i] = 1
                 # TODO is this efficient? Maybe look into some crazy joins later on
-                echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.created).first()
+                echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.id).first()
                 if not echo:
                     print 'DAMN there are no echoer friends when they should be!\
                            wtf...... TODO figure out how to handle sublte bugs like this...\
                            can\'t assert and can\'t throw an exception, obviously'
                 quote.created = echo.created
                 quote.reporter = echo.user
+        ## TODO perhaps shouldn't sort quotes 
         sorted_quotes = sorted(quotes, key = lambda q: q.created, reverse = True)
 
         ## convert them to dictionary according to API specs
