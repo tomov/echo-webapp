@@ -30,6 +30,7 @@ class User(db.Model):
     registered = db.Column(db.Boolean)
     echoes = association_proxy('users_echoes', 'quote')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
+    feedback = db.relationship('Feedback', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
 
     def __init__(self, fbid, email = None, first_name = None, last_name = None, picture_url = None, picture = None, registered = False):
@@ -107,6 +108,7 @@ class Echo(db.Model):
         backref = backref("quotes_echoes", cascade="all, delete-orphan"))
     user = db.relationship("User", backref = "users_echoes") 
     __table_args__ = (UniqueConstraint('quote_id', 'user_id', name='unique-echoer-quote-pair'), )
+
     def __init__(self, user):
         self.user = user
         self.created = datetime.utcnow()
@@ -151,6 +153,23 @@ class Comment(db.Model):
 
     def __repr__(self):
         return '<Comment %r>' % self.content
+
+class Feedback(db.Model):
+    __tablename__ = 'feedback'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    content = db.Column(db.Text)
+
+    def __init__(self, user_id, content = None):
+        self.user_id = user_id
+        self.content = content
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<Feedback %r>' % self.content
 
 
 # call this somewhere in application.py/home, run and open home page

@@ -8,7 +8,7 @@ from pprint import pprint
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite, Echo
+from model import User, Quote, Comment, Favorite, Echo, Feedback
 from model import create_db
 from constants import *
 from util import *
@@ -244,6 +244,33 @@ def add_fav():
     except ServerException as e:
         return format_response(None, e)
     
+
+@app.route('/add_feedback', methods = ['POST'])
+def add_feedback():
+    data = json.loads(request.values.get('data'))
+    userFbid = data['userFbid']
+    content = data['content']
+   
+    print 'feedback'
+    print userFbid
+    print content
+    
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        userId = user.id
+
+        print userId
+        print content
+
+        feedback = Feedback(userId, content)
+        db.session.add(feedback)
+        db.session.commit()
+        return format_response(SuccessMessages.FEEDBACK_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
 
 #-------------------------------------------
 #           DELETE REQUESTS

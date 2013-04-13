@@ -36,3 +36,4 @@ class SuccessMessages:
     ECHO_DELETED = "Quote was unechoed successfully!"
     FAV_ADDED = "Favorite was added successfully!"
     FAV_DELETED = "Favorite was deleted successfully!"
+    FEEDBACK_ADDED = "Feedback was added successfully!"
