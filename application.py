@@ -267,7 +267,7 @@ def register_token():
 
         db.session.commit()
 
-        return format_response(SuccessMessages.TOKEN_REGISTERED))
+        return format_response(SuccessMessages.TOKEN_REGISTERED)
 
     except ServerException as e:
         return format_response(None, e)
