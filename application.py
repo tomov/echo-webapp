@@ -13,6 +13,8 @@ from model import create_db
 from constants import *
 from util import *
 
+from apns import APNs, Payload
+
 #----------------------------------------
 # initialization
 #----------------------------------------
@@ -27,6 +29,9 @@ app.config.update(
 app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI 
 db.init_app(app)
 
+# open persistent connection to gateway (and feedback) server for push notifications
+apns = APNs(use_sandbox=True, cert_file='certificates/EchoAPNDevCert.pem', key_file='certificates/EchoAPNDevKey.pem')
+
 #----------------------------------------
 # controllers
 #----------------------------------------
@@ -34,7 +39,6 @@ db.init_app(app)
 @app.route("/")
 def hello():
     return "Hello from Python yay!"
-
 
 #---------------------------------------
 #         POST REQUESTS
@@ -241,6 +245,30 @@ def add_fav():
         user.favs.append(favorite)
         db.session.commit()
         return format_response(SuccessMessages.FAV_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
+    
+@app.route("/register_token", methods = ['POST'])
+def register_token():
+    qdata = json.loads(request.values.get('data'))
+    userFbid = qdata['fbid']
+    userDeviceToken = qdata['token']
+
+    print userDeviceToken
+
+    try:
+        user = User.query.filter_by(fbid = userFbid).first()
+        if not user:
+            raise ServerException(ErrorMessage.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        if userDeviceToken:
+            user.device_token = userDeviceToken
+
+        db.session.commit()
+
+        return format_response(SuccessMessages.TOKEN_REGISTERED))
+
     except ServerException as e:
         return format_response(None, e)
     

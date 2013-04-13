@@ -32,6 +32,7 @@ class User(db.Model):
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     feedback = db.relationship('Feedback', backref = 'user', lazy = 'dynamic')
     friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
+    device_token = db.Column(db.String(length = 64))
 
     def __init__(self, fbid, email = None, first_name = None, last_name = None, picture_url = None, picture = None, registered = False):
         self.fbid = fbid

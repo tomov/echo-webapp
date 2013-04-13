@@ -37,3 +37,4 @@ class SuccessMessages:
     FAV_ADDED = "Favorite was added successfully!"
     FAV_DELETED = "Favorite was deleted successfully!"
     FEEDBACK_ADDED = "Feedback was added successfully!"
+    TOKEN_REGISTERED = "Device token was registered successfully!"
