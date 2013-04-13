@@ -357,6 +357,8 @@ def remove_fav(quoteId, userFbid):
 def quote_dict_from_obj(quote):
     quote_res = dict()
     quote_res['_id'] = str(quote.id)
+    quote_res['source_name'] = quote.source.first_name + ' ' + quote.source.last_name
+    quote_res['source_picture_url'] = quote.source.picture_url
     quote_res['timestamp'] = datetime_to_timestamp(quote.created) # doesn't jsonify
     quote_res['sourceFbid'] = quote.source.fbid
     quote_res['reporterFbid'] = quote.reporter.fbid

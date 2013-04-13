@@ -115,6 +115,10 @@ class ApplicationTestCase(unittest.TestCase):
         assert quote.location_lat == json['location_lat']
         assert quote.location_long == json['location_long']
         assert quote.content == json['quote']
+        if 'source_picture_url' in json:
+            assert quote.source.picture_url == json['source_picture_url']
+        if 'source_name' in json:
+            assert quote.source.first_name + ' ' + quote.source.last_name == json['source_name']
 
     def assert_is_same_comment(self, comment, json):
         user = User.query.filter_by(fbid = json['userFbid']).first()
