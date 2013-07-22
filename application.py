@@ -82,8 +82,16 @@ def add_friends(user, friends_raw):
             friend.picture_url = friend_picture_url
         if friend not in user.friends:
             user.friends.append(friend)
-    return format_response(SuccessMessages.FRIENDSHIP_ADDED);
 
+def remove_friends(user, unfriends_raw):
+    for friend_fbid in unfriends_raw:
+        friend = User.query.filter_by(fbid = friend_fbid).first()
+        if not friend:
+            continue
+        if friend in user.friends:
+            user.friends.remove(friend)
+
+# also functions as update_user
 @app.route("/add_user", methods = ['POST'])
 def add_user():
     udata = json.loads(request.values.get('data'))
@@ -92,6 +100,9 @@ def add_user():
     email = udata['email']
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
+    unfriends_raw = None
+    if 'unfriends' in udata:
+        unfriends_raw = udata['unfriends']
 
     try:
         user = User.query.filter_by(fbid = fbid).first()
@@ -105,6 +116,7 @@ def add_user():
             user.registered = True
             user.email = email
             add_friends(user, friends_raw)
+            remove_friends(user, unfriends_raw)
         else:
             # same as update_user
             user.picture_url = picture_url
@@ -112,6 +124,7 @@ def add_user():
             user.first_name = first_name
             user.last_name = last_name
             add_friends(user, friends_raw)
+            remove_friends(user, unfriends_raw)
 
         db.session.commit()
         return format_response(SuccessMessages.USER_ADDED)
