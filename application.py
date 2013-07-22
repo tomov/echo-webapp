@@ -84,6 +84,8 @@ def add_friends(user, friends_raw):
             user.friends.append(friend)
 
 def remove_friends(user, unfriends_raw):
+    if not unfriends_raw:
+        return
     for friend_fbid in unfriends_raw:
         friend = User.query.filter_by(fbid = friend_fbid).first()
         if not friend:
