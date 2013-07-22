@@ -9,7 +9,7 @@ from sets import Set
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite, Echo, Feedback
+from model import User, Quote, Comment, Favorite, Echo, Feedback, Notification
 from model import create_db
 from constants import *
 from util import *
@@ -66,6 +66,7 @@ def get_echo_id_from_quote_id(quote_id):
 #         POST REQUESTS
 #----------------------------------------
 
+# note that we don't db.session.commit -- the caller must do that after
 def add_friends(user, friends_raw):
     for friend_raw in friends_raw:
         friend_fbid = friend_raw['id']
@@ -83,6 +84,7 @@ def add_friends(user, friends_raw):
         if friend not in user.friends:
             user.friends.append(friend)
 
+# note that we don't db.session.commit -- the caller must do that after
 def remove_friends(user, unfriends_raw):
     if not unfriends_raw:
         return
@@ -179,6 +181,28 @@ def update_user():
     except ServerException as e:
         return format_response(None, e)
 
+# note that we don't db.session.commit -- the caller must do that after
+def add_notification(user, quote, type, recipient_id):
+    print 'ADD NOTIFICATION from user ' + str(user.id) + ' quote ' + str(quote.id) + ' type ' + str(type) + ' for recipient ' + str(recipient_id)
+    # add notification to db
+    notification = Notification(user, quote, type)
+    recipient = User.query.filter_by(id=recipient_id).first()
+    if not recipient:
+        return
+    notification.recipients.append(recipient)
+    db.session.add(notification)
+    # send push notification to device
+    formatted_text = notification_to_text(notification)
+    token_hex = recipient.device_token
+    print 'send text ' + formatted_text['text']
+    try:
+        payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
+        apns.gateway_server.send_notification(token_hex, payload)
+    except Exception as e:
+        raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
+        return False
+    return True
+
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
     qdata = json.loads(request.values.get('data'))
@@ -210,8 +234,10 @@ def add_quote():
         # this creates a dummy entry in the echoes table that corresponds to the original quote, with echo.user_id == quote.reporter_id
         # this makes it easier to fetch quotes and echoes chronologically in get_quotes
         quote.echoers.append(reporter)
-     
         db.session.add(quote)
+        db.session.flush() # so we can get quote id
+
+        add_notification(reporter, quote, 'quote', source.id)
         db.session.commit()
         return format_response(SuccessMessages.QUOTE_ADDED)
     except ServerException as e:
@@ -237,6 +263,11 @@ def add_comment():
 
         comment = Comment(user.id, quote.id, content)
         db.session.add(comment)
+
+        if user.id != quote.reporter_id:
+            add_notification(user, quote, 'comment', quote.reporter_id)
+        if user.id != quote.source_id:
+            add_notification(user, quote, 'comment', quote.source_id)
         db.session.commit()
         return format_response(SuccessMessages.COMMENT_ADDED)
     except ServerException as e:
@@ -261,6 +292,8 @@ def add_echo():
 
         if user not in quote.echoers and user != quote.reporter and user != quote.source:
             quote.echoers.append(user)
+            add_notification(user, quote, 'echo', quote.reporter_id)
+            add_notification(user, quote, 'echo', quote.source_id)
         db.session.commit()
         return format_response(SuccessMessages.ECHO_ADDED)
     except ServerException as e:
@@ -292,6 +325,11 @@ def add_fav():
 
         favorite = Favorite(quote)
         user.favs.append(favorite)
+
+        if user.id != quote.reporter_id:
+            add_notification(user, quote, 'fav', quote.reporter_id)
+        if user.id != quote.source_id:
+            add_notification(user, quote, 'fav', quote.source_id)
         db.session.commit()
         return format_response(SuccessMessages.FAV_ADDED)
     except ServerException as e:
@@ -591,8 +629,6 @@ def get_quotes():
             lower = int(oldest) 
             if lower > upper:
                 lower, upper = upper, lower
-            print 'oldest ' + str(oldest)
-            print 'latest ' + str(latest)
             echoes = Echo.query.filter(or_conds, Echo.id >= lower, Echo.id <= upper, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).limit(limit).all()
         elif latest:
             lower = int(latest) 
@@ -681,6 +717,89 @@ def get_favs():
         return format_response(result);
     except ServerException as e:
         return format_response(None, e);
+
+def notification_to_text(notification):
+    user = notification.user
+    quote = notification.quote
+    if notification.type == 'quote':
+        return {
+            'text': "{0} {1} posted a quote by you: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'bold': [{
+                    'location': 0,
+                    'length': len(user.first_name) + len(user.last_name) + 1
+                }]
+        }
+    elif notification.type == 'echo':
+        return {
+            'text': "{0} {1} echoed your quote: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'bold': [{
+                    'location': 0,
+                    'length': len(user.first_name) + len(user.last_name) + 1
+                }]
+        }
+    elif notification.type == 'comment':
+        return {
+            'text': "{0} {1} commented on your quote".format(user.first_name, user.last_name, quote.content),
+            'bold': [{
+                    'location': 0,
+                    'length': len(user.first_name) + len(user.last_name) + 1
+                }]
+        }
+    elif notification.type == 'fav':
+        return {
+            'text': "{0} {1} favorited your quote: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'bold': [{
+                    'location': 0,
+                    'length': len(user.first_name) + len(user.last_name) + 1
+                }]
+        }
+    else:
+        return None
+
+def notification_dict_from_obj(notification):
+    notification_res = dict()
+    notification_res['_id'] = str(notification.quote_id)
+    notification_res['type'] = notification_res.type
+    notification_res['unread'] = notification.unread
+    notification_res['timestamp'] = datetime_to_timestamp(notification.created) # doesn't jsonify
+    notification_res['formatted-text'] = notification_to_text(notification)
+    return notification_res
+
+@app.route("/get_notifications", methods = ['get'])
+def get_notifications():
+    fbid = request.args.get('fbid')
+    unread_only = request.args.get('unread_only')
+    limit = request.args.get('limit')
+
+    try:
+        user = User.query.filter_by(fbid = fbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        if not limit:
+            if not unread_only:
+                notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id)).order_by(desc(Notification.id)).all()
+            else:
+                notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id), Notification.unread).order_by(desc(Notification.id)).all()
+        else:
+            if not unread_only:
+                notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id)).order_by(desc(Notification.id)).limit(limit).all()
+            else:
+                notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id), Notification.unread).order_by(desc(Notification.id)).limit(limit).all()
+
+        result = []
+        for notification in notifications:
+            notification_res = notification_dict_from_obj(notification)
+            result.append(notification_res)
+            notification.unread = False
+
+        db.session.commit() # update unreads
+
+        dump = json.dumps(result)
+        return format_response(result)
+    except ServerException as e:
+        return format_response(None, e)
 
 
 #-----------------------------
