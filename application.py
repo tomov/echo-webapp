@@ -525,6 +525,22 @@ def get_quote():
     except ServerException as e:
         return format_response(None, e);
 
+# TODO maybe deprecate get_quotes_with_ids? this is basically the same thing
+@app.route('/check_deleted_quotes', methods = ['post'])
+def check_deleted_quotes():
+    ids = json.loads(request.values.get('data'))
+
+    result = []
+    for id in ids:
+        id = get_quote_id_from_echo_id(id)
+        quote = Quote.query.filter_by(id = id).first()
+        if not quote or quote.deleted:
+            result.append(None)
+        else:
+            result.append({'_id': id})
+
+    return format_response(result)
+
 @app.route('/get_quotes_with_ids', methods = ['post'])
 def get_quotes_with_ids():
     ids = json.loads(request.values.get('data'))
@@ -539,6 +555,7 @@ def get_quotes_with_ids():
             result.append(quote_dict_from_obj(quote))
 
     return format_response(result)
+
 
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
