@@ -759,7 +759,7 @@ def notification_to_text(notification):
 def notification_dict_from_obj(notification):
     notification_res = dict()
     notification_res['_id'] = str(notification.quote_id)
-    notification_res['type'] = notification_res.type
+    notification_res['type'] = notification.type
     notification_res['unread'] = notification.unread
     notification_res['timestamp'] = datetime_to_timestamp(notification.created) # doesn't jsonify
     notification_res['formatted-text'] = notification_to_text(notification)
