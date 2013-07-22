@@ -74,9 +74,14 @@ def add_friends(user, friends_raw):
 
         friend = User.query.filter_by(fbid = friend_fbid).first()
         if not friend:
+            # add hollow profile if friend not exists
             friend = User(friend_fbid, None, friend_first, friend_last, friend_picture_url,  None, False)
             db.session.add(friend)
-        user.friends.append(friend)
+        else: 
+            # if exists, update picture url
+            friend.picture_url = friend_picture_url
+        if friend not in user.friends:
+            user.friends.append(friend)
     return format_response(SuccessMessages.FRIENDSHIP_ADDED);
 
 @app.route("/add_user", methods = ['POST'])
@@ -99,16 +104,21 @@ def add_user():
             # user was pre-signed up by a friend but that's the first time she's logging in
             user.registered = True
             user.email = email
-            add_friends(user, friends_raw) # TODO sep thread?
+            add_friends(user, friends_raw)
         else:
-            raise ServerException(ErrorMessages.USER_IS_ALREADY_REGISTERED, \
-                ServerException.ER_BAD_USER) # must call update_user instead
+            # same as update_user
+            user.picture_url = picture_url
+            user.email = email
+            user.first_name = first_name
+            user.last_name = last_name
+            add_friends(user, friends_raw)
 
         db.session.commit()
         return format_response(SuccessMessages.USER_ADDED)
     except ServerException as e:
         return format_response(None, e)
 
+# TODO deprecated for now... we use add_user
 @app.route("/update_user", methods = ['POST'])
 def update_user():
     udata = json.loads(request.values.get('data'))
@@ -147,7 +157,7 @@ def update_user():
             if last_name:
                 user.last_name = last_name
             if friends_raw:
-                add_friends(user, friends_raw) # TODO sep thread? also what if you add the same friendship multiple times?
+                add_friends(user, friends_raw)
 
         db.session.commit()
         return format_response(SuccessMessages.USER_UPDATED) 
