@@ -463,6 +463,8 @@ def quote_dict_from_obj(quote):
     quote_res['_id'] = str(get_echo_id_from_quote_id(quote.id))
     quote_res['source_name'] = quote.source.first_name + ' ' + quote.source.last_name
     quote_res['source_picture_url'] = quote.source.picture_url
+    quote_res['reporter_name'] = quote.reporter.first_name + ' ' + quote.reporter.last_name
+    quote_res['reporter_picture_url'] = quote.reporter.picture_url
     quote_res['timestamp'] = datetime_to_timestamp(quote.created) # doesn't jsonify
     quote_res['sourceFbid'] = quote.source.fbid
     quote_res['reporterFbid'] = quote.reporter.fbid
