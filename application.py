@@ -196,10 +196,10 @@ def add_notification(user, quote, type, recipient_id):
     token_hex = recipient.device_token
     print 'send text ' + formatted_text['text']
     try:
-        payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
-        apns.gateway_server.send_notification(token_hex, payload)
+        #payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
+        #apns.gateway_server.send_notification(token_hex, payload)
     except Exception as e:
-        raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
+        #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
         return False
     return True
 
