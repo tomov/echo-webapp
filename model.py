@@ -16,6 +16,12 @@ friendship = db.Table(
     db.Column('friend_b_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
 )
 
+notifications_recipients = db.Table(
+    'notifications_recipients', 
+    db.Column('notification_id', db.Integer, db.ForeignKey('notifications.id')), 
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'))
+)
+
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key = True)
@@ -185,6 +191,29 @@ class Access_Token(db.Model):
     def __repr__(self):
         return '[id: {2}; user_id: {0}; access_token: {1}]'.format(self.user_id, self.access_token, self.id)
 
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    type = db.Column(db.Enum('quote', 'echo', 'comment', 'fav'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'))
+    unread = db.Column(db.Boolean)
+    quote = db.relationship("Quote", backref="notifications")
+    user = db.relationship("User", backref="notifications_authored")
+    recipients = db.relationship("User", secondary = notifications_recipients, backref="notifications_received")
+
+    def __init__(self, user, quote, type=None):
+        self.user = user
+        self.quote = quote
+        self.type = type
+        self.unread = True
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<Notification %r>' % self.type
 
 # call this somewhere in application.py/home, run and open home page
 # then check if db is created and then remove it
