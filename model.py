@@ -178,6 +178,19 @@ class Feedback(db.Model):
     def __repr__(self):
         return '<Feedback %r>' % self.content
 
+# for auth
+class Access_Token(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, unique=True)
+    access_token = db.Column(db.Text)
+
+    def __init__(self, userid, token=None):
+        self.user_id = userid
+        self.access_token = token
+
+    def __repr__(self):
+        return '[id: {2}; user_id: {0}; access_token: {1}]'.format(self.user_id, self.access_token, self.id)
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column(db.Integer, primary_key = True)

@@ -9,11 +9,18 @@ from sets import Set
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite, Echo, Feedback, Notification
+from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification
 from model import create_db
 from constants import *
 from util import *
 
+# for auth
+import urllib
+import urllib2
+import tokenlib
+import random
+
+# for push notifications
 from apns import APNs, Payload
 
 #----------------------------------------
@@ -32,6 +39,9 @@ db.init_app(app)
 
 # open persistent connection to gateway (and feedback) server for push notifications
 apns = APNs(use_sandbox=True, cert_file='certificates/EchoAPNDevCert.pem', key_file='certificates/EchoAPNDevKey.pem')
+
+# used for auth
+manager = tokenlib.TokenManager(secret="some_hard_to_guess_key:)", timeout=31560000)
 
 #----------------------------------------
 # controllers
@@ -607,6 +617,14 @@ def get_quotes_with_ids():
 
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
+
+    # AUTH -- TODO: put in method?
+    #----------------------------------
+
+    token = request.args.get('token')
+
+    #-----------------------------------
+
     fbid = request.args.get('fbid')
     req_type = request.args.get('type')
     oldest = request.args.get('oldest')
@@ -620,6 +638,15 @@ def get_quotes():
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
+
+        user_id = user.id
+        try:
+            auth = authorize_user(user_id, token)
+        except AuthException as e:
+            return format_response(None, e)
+
+        #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
+        #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
 
         ## construct OR condition for which quotes to pick
         if req_type == 'me':
@@ -840,6 +867,123 @@ def format_response(ret=None, error=None):
         #assert isinstance(error, ServerException)
         ret['error'] = error.to_dict() 
     return json.dumps(ret)
+
+#----------------------------------------
+# Echo Auth
+#----------------------------------------
+
+# Note: does not comply with OAuth2 specifications - for internal use only
+
+class AuthException(Exception):
+    AUTHORIZED          = 0
+    TOKEN_EXPIRED       = 1
+    TOKEN_INVALID       = 2
+    NOT_AUTHORIZED      = 3
+    UNKNOWN_EXCEPTION   = 4
+
+    def __init__(self, message, n=UNKNOWN_EXCEPTION):
+        self.message = message
+        self.n = n
+
+    def to_dict(self):
+        return {'exception': 'AuthException', 'errno' : self.n, 'message' : self.message}
+
+    def __str__(self):
+        return "[%d] %s" % self.message
+
+@app.route('/token', methods = ['GET'])
+def token():
+    # three cases: success, oauth error, network failure
+
+    rand = random.randint(1, 100000)
+    fbid = request.values.get('fbid')
+    token = request.values.get('token')
+
+    r = validate('fb', fbid, token)
+
+    if not r:
+        e = AuthException("Unable to validate user.", 4)
+        return format_response(None, e)
+
+    user_id = request.values.get('user_id')
+
+    user = User.query.filter_by(fbid=fbid).first()
+    if not user:
+        e = AuthException("Unable to validate user: user does not exist", 4)
+        return format_response(None, e)
+
+    # if user exists, update user
+    user_id = user.id
+    access_token = manager.make_token({"user_id":user_id, "rand":rand})
+
+    temp = Access_Token.query.filter_by(user_id=user_id).first()
+    if temp:
+        temp.access_token = access_token
+    else:
+        db.session.add(Access_Token(user_id, access_token))
+
+    db.session.commit()
+
+    response = {}
+    response['user_id'] = user_id
+    response['access_token'] = access_token
+    dump = json.dumps(response)
+    return format_response(response)
+
+# determines whether the caller has access to the resources
+def authorize_user(user_id, access_token):
+
+    try:
+        parsed_token = manager.parse_token(str(access_token))
+        user_id = parsed_token['user_id']
+    except ValueError as e:
+
+        # note: these checks are dependent on exceptions in tokenlib library
+        if "expired" in e.message:
+            raise AuthException("Token is expired.", AuthException.TOKEN_EXPIRED)
+        if "invalid" in e.message:
+            raise AuthException("Token is invalid.", AuthException.TOKEN_INVALID)
+
+        # safety
+        raise AuthException("Something is wrong with the token.", AuthException.UNKNOWN_EXCEPTION)
+    
+    tok = Access_Token.query.filter_by(user_id=parsed_token['user_id']).first()
+    if tok != None and int(tok.user_id) == int(user_id) and tok.access_token == access_token:
+        return 1
+
+    raise AuthException("Not authorized.", AuthException.NOT_AUTHORIZED)
+
+# check against fb to caller has access to the info
+# returns True/False -- TODO: maybe make this raise an exception instead
+def validate(method, user_id, token):
+
+    is_valid = False
+
+    if method == 'fb':
+
+        # TODO: make robust against network failures
+        data = {'fields':'id', 'access_token':token}
+        url_data = urllib.urlencode(data)
+        url = 'https://graph.facebook.com/me?{0}'.format(url_data)
+
+        try:
+            response = urllib2.urlopen(url)
+        except urllib2.HTTPError, e:
+            # do something again
+            return is_valid
+        except urllib2.URLError, e:
+            return is_valid
+            # fail or try again?
+
+        r = json.load(response)
+
+        try:
+            if user_id == r['id']:
+                is_valid = True
+        except:
+            is_valid = False
+
+    return is_valid
 
 
 #---------------------------------------
