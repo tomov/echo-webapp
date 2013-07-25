@@ -189,19 +189,23 @@ def add_notification(user, quote, type, recipient_id):
     recipient = User.query.filter_by(id=recipient_id).first()
     if not recipient:
         return
+    if recipient not in user.friends:
+        return
     notification.recipients.append(recipient)
     db.session.add(notification)
     # send push notification to device
     formatted_text = notification_to_text(notification)
     token_hex = recipient.device_token
+    if not token_hex:
+        return
     print 'send text ' + formatted_text['text']
-    try:
+    #try:
         #payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
         #apns.gateway_server.send_notification(token_hex, payload)
-    except Exception as e:
+    #except Exception as e:
         #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
-        return False
-    return True
+    #    return False
+    return
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
@@ -229,6 +233,8 @@ def add_quote():
             raise ServerException(ErrorMessages.REPORTER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
+        if content[-1:] != '.':
+            content += '.'
         quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
         # add the reporter as the first "echoer"
         # this creates a dummy entry in the echoes table that corresponds to the original quote, with echo.user_id == quote.reporter_id
@@ -351,6 +357,8 @@ def register_token():
 
         if userDeviceToken:
             user.device_token = userDeviceToken
+        else:
+            user.device_token = None
 
         db.session.commit()
         return format_response(SuccessMessages.TOKEN_REGISTERED)
@@ -758,7 +766,7 @@ def notification_to_text(notification):
 
 def notification_dict_from_obj(notification):
     notification_res = dict()
-    notification_res['_id'] = str(notification.quote_id)
+    notification_res['_id'] = str(get_echo_id_from_quote_id(notification.quote_id))
     notification_res['type'] = notification.type
     notification_res['unread'] = notification.unread
     notification_res['timestamp'] = datetime_to_timestamp(notification.created) # doesn't jsonify
