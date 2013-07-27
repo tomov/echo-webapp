@@ -774,7 +774,7 @@ def notification_to_text(notification):
         }
     elif notification.type == 'comment':
         return {
-            'text': "{0} {1} commented on your quote".format(user.first_name, user.last_name, quote.content),
+            'text': "{0} {1} commented on your quote.".format(user.first_name, user.last_name, quote.content),
             'bold': [{
                     'location': 0,
                     'length': len(user.first_name) + len(user.last_name) + 1
