@@ -595,7 +595,8 @@ def check_deleted_quotes():
         if not quote or quote.deleted:
             result.append(None)
         else:
-            result.append({'_id': id})
+            echo_id = get_echo_id_from_quote_id(id)
+            result.append({'_id': echo_id})
 
     return format_response(result)
 
