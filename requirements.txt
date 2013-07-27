@@ -10,4 +10,5 @@ Werkzeug==0.8.3
 alembic==0.4.2
 bpython==0.12
 distribute==0.6.32
+tokenlib==0.2.0
 wsgiref==0.1.2
