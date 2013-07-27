@@ -7,6 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import UniqueConstraint
 
+
 db = SQLAlchemy()
 
 # copied from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
