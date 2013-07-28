@@ -24,6 +24,22 @@ import random
 from apns import APNs, Payload
 
 #----------------------------------------
+# Decorator
+#----------------------------------------
+
+# to be used as a decorator -- must return a callable
+from functools import wraps
+def authenticate(func):
+    @wraps(func)
+    def decorated_function(user_id="", access_token="", *args, **kwargs):
+        try:
+            authorize_user(user_id, access_token)
+        except AuthException as e:
+            return format_response(None, e)
+        return func(*args, **kwargs)
+    return decorated_function
+
+#----------------------------------------
 # initialization
 #----------------------------------------
 
@@ -428,15 +444,15 @@ def register_token():
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
     token = request.args.get('token')
+    user_id = 0
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
     #userFbid = qdata['fbid']
-    user_id = ['user_id']
     userDeviceToken = qdata['token']
 
     print userDeviceToken
@@ -795,14 +811,14 @@ def get_quotes():
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
     token = request.args.get('token')
+    user_id = 0
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     #fbid = request.args.get('fbid') # TODO: remove this
-    user_id = request.args.get('user_id')
     req_type = request.args.get('type')
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
@@ -998,14 +1014,14 @@ def get_notifications():
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
     token = request.args.get('token')
+    user_id = 0
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     #fbid = request.args.get('fbid')
-    user_id = request.args.get('user_id')
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
 
@@ -1191,16 +1207,7 @@ def validate(method, user_id, token):
 
     return is_valid
 
-# to be used as a decorator -- must return a callable
-def authenticate(func):
-    @wraps(func)
-    def decorated_function(user_id="", access_token="", *args, **kwargs):
-        try:
-            authorize_user(user_id, access_token)
-        except AuthException as e:
-            return format_response(None, e)
-        return func(*args, **kwargs)
-    return decorated_function
+
 
 
 #---------------------------------------
