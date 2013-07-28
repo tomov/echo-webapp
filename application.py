@@ -435,13 +435,15 @@ def register_token():
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
-    userFbid = qdata['fbid']
+    #userFbid = qdata['fbid']
+    user_id = ['user_id']
     userDeviceToken = qdata['token']
 
     print userDeviceToken
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        #user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.get(user_id)
         if not user:
             raise ServerException(ErrorMessage.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -799,7 +801,8 @@ def get_quotes():
         return format_response(None, e)
     #-----------------------------------
 
-    fbid = request.args.get('fbid')
+    #fbid = request.args.get('fbid') # TODO: remove this
+    user_id = request.args.get('user_id')
     req_type = request.args.get('type')
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
@@ -808,7 +811,8 @@ def get_quotes():
         limit = APIConstants.DEFAULT_GET_QUOTES_LIMIT
 
     try:
-        user = User.query.filter_by(fbid = fbid).first()
+        #user = User.query.filter_by(fbid = fbid).first() # TODO: remove this
+        user = User.query.get(user_id)
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -1000,12 +1004,14 @@ def get_notifications():
         return format_response(None, e)
     #-----------------------------------
 
-    fbid = request.args.get('fbid')
+    #fbid = request.args.get('fbid')
+    user_id = request.args.get('user_id')
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
 
     try:
-        user = User.query.filter_by(fbid = fbid).first()
+        #user = User.query.filter_by(fbid = fbid).first()
+        user = User.query.get(user_id)
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
