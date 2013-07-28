@@ -459,7 +459,8 @@ def register_token():
 
     try:
         #user = User.query.filter_by(fbid = userFbid).first()
-        user = User.query.get(user_id)
+        #user = User.query.get(user_id)
+        user = User.query.filter_by(User.id = user_id).first()
         if not user:
             raise ServerException(ErrorMessage.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -828,7 +829,8 @@ def get_quotes():
 
     try:
         #user = User.query.filter_by(fbid = fbid).first() # TODO: remove this
-        user = User.query.get(user_id)
+        #user = User.query.get((user_id, 571438200))
+        user = User.query.filter_by(User.id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -1027,7 +1029,8 @@ def get_notifications():
 
     try:
         #user = User.query.filter_by(fbid = fbid).first()
-        user = User.query.get(user_id)
+        #user = User.query.get(user_id)
+        user = User.query.filter_by(User.id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
