@@ -619,10 +619,14 @@ def get_quotes_with_ids():
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
 
-    # AUTH -- TODO: put in method?
+    # AUTH -- TODO: put in method -- decorator
     #----------------------------------
 
     token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
 
     #-----------------------------------
 
@@ -639,12 +643,6 @@ def get_quotes():
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
-
-        user_id = user.id
-        try:
-            auth = authorize_user(user_id, token)
-        except AuthException as e:
-            return format_response(None, e)
 
         #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
         #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
@@ -932,7 +930,7 @@ def token():
     return format_response(response)
 
 # determines whether the caller has access to the resources
-def authorize_user(user_id, access_token):
+def authorize_user(access_token):
 
     try:
         parsed_token = manager.parse_token(str(access_token))
