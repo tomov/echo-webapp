@@ -1171,7 +1171,8 @@ def authorize_user(access_token):
     
     tok = Access_Token.query.filter_by(user_id=parsed_token['user_id']).first()
     if tok != None and int(tok.user_id) == int(user_id) and tok.access_token == access_token:
-        return user_id
+        # TODO: make this uint or long (when we have billions of users...)
+        return int(user_id)
 
     raise AuthException("Not authorized.", AuthException.NOT_AUTHORIZED)
 
