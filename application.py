@@ -54,7 +54,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI
 db.init_app(app)
 
 # open persistent connection to gateway (and feedback) server for push notifications
-apns = APNs(use_sandbox=True, cert_file='certificates/this-looks-important.pem', key_file='certificates/also-important.pem')
+apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')
 
 # used for auth - 1 year = 31560000, 1 month = ?, 
 manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeout=7776000)
@@ -65,7 +65,9 @@ manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeou
 
 @app.route("/")
 def hello():
-    create_db()
+    user = User.query.filter(User.id==6713).first()
+    quote = Quote.query.filter(Quote.source_id==6713).first()
+    add_notification(user, quote, 'quote', 6189)
     return "Hello from Python yay!"
 
 #---------------------------------------
@@ -231,16 +233,7 @@ def update_user():
 # note that we don't db.session.commit -- the caller must do that after
 def add_notification(user, quote, type, recipient_id):
 
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    #-----------------------------------
-
-    print 'ADD NOTIFICATION from user ' + str(user.id) + ' quote ' + str(quote.id) + ' type ' + str(type) + ' for recipient ' + str(recipient_id)
+    #print 'ADD NOTIFICATION from user ' + str(user.id) + ' quote ' + str(quote.id) + ' type ' + str(type) + ' for recipient ' + str(recipient_id)
     # add notification to db
     notification = Notification(user, quote, type)
     recipient = User.query.filter_by(id=recipient_id).first()
@@ -255,13 +248,13 @@ def add_notification(user, quote, type, recipient_id):
     token_hex = recipient.device_token
     if not token_hex:
         return
-    print 'send text ' + formatted_text['text']
-    #try:
-        #payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
-        #apns.gateway_server.send_notification(token_hex, payload)
-    #except Exception as e:
-        #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
-    #    return False
+    #print 'send text ' + formatted_text['text']
+    try:
+        payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
+        apns.gateway_server.send_notification("884a19da5dc0a72d8aecb5ad6fe7ee2e49e9d8aacd618aedb785f067cb114de1", payload)
+    except Exception as e:
+        raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
+        return False
     return
 
 @app.route("/add_quote", methods = ['POST'])
@@ -968,7 +961,7 @@ def notification_to_text(notification):
     quote = notification.quote
     if notification.type == 'quote':
         return {
-            'text': "{0} {1} posted a quote by you: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'text': "{0} {1} posted a quote by you!".format(user.first_name, user.last_name),
             'bold': [{
                     'location': 0,
                     'length': len(user.first_name) + len(user.last_name) + 1
