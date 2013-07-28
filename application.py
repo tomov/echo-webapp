@@ -40,8 +40,8 @@ db.init_app(app)
 # open persistent connection to gateway (and feedback) server for push notifications
 apns = APNs(use_sandbox=True, cert_file='certificates/EchoAPNDevCert.pem', key_file='certificates/EchoAPNDevKey.pem')
 
-# used for auth
-manager = tokenlib.TokenManager(secret="some_hard_to_guess_key:)", timeout=31560000)
+# used for auth - 1 year = 31560000, 1 month = ?, 
+manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeout=7776000)
 
 #----------------------------------------
 # controllers
@@ -1149,7 +1149,7 @@ def authorize_user(access_token):
     
     tok = Access_Token.query.filter_by(user_id=parsed_token['user_id']).first()
     if tok != None and int(tok.user_id) == int(user_id) and tok.access_token == access_token:
-        return 1
+        return user_id
 
     raise AuthException("Not authorized.", AuthException.NOT_AUTHORIZED)
 
