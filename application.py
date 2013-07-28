@@ -109,6 +109,16 @@ def remove_friends(user, unfriends_raw):
 # also functions as update_user
 @app.route("/add_user", methods = ['POST'])
 def add_user():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     udata = json.loads(request.values.get('data'))
     fbid = udata['id']
     picture_url = udata['picture_url']
@@ -149,6 +159,16 @@ def add_user():
 # TODO deprecated for now... we use add_user
 @app.route("/update_user", methods = ['POST'])
 def update_user():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     udata = json.loads(request.values.get('data'))
     picture_url = None
     email = None
@@ -194,6 +214,16 @@ def update_user():
 
 # note that we don't db.session.commit -- the caller must do that after
 def add_notification(user, quote, type, recipient_id):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     print 'ADD NOTIFICATION from user ' + str(user.id) + ' quote ' + str(quote.id) + ' type ' + str(type) + ' for recipient ' + str(recipient_id)
     # add notification to db
     notification = Notification(user, quote, type)
@@ -220,6 +250,16 @@ def add_notification(user, quote, type, recipient_id):
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     qdata = json.loads(request.values.get('data'))
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
@@ -263,6 +303,16 @@ def add_quote():
 
 @app.route("/add_comment", methods = ['POST'])
 def add_comment():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     qdata = json.loads(request.values.get('data'))
     quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
     userFbid = qdata['userFbid']
@@ -292,6 +342,16 @@ def add_comment():
 
 @app.route("/add_echo", methods = ['POST'])
 def add_echo():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     qdata = json.loads(request.values.get('data'))
     quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
     userFbid = qdata['userFbid']
@@ -318,6 +378,16 @@ def add_echo():
 
 @app.route("/add_fav", methods = ['POST'])
 def add_fav():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     qdata = json.loads(request.values.get('data'))
     quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
     userFbid = qdata['userFbid']
@@ -354,6 +424,16 @@ def add_fav():
     
 @app.route("/register_token", methods = ['POST'])
 def register_token():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     qdata = json.loads(request.values.get('data'))
     userFbid = qdata['fbid']
     userDeviceToken = qdata['token']
@@ -380,6 +460,16 @@ def register_token():
 
 @app.route('/add_feedback', methods = ['POST'])
 def add_feedback():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     data = json.loads(request.values.get('data'))
     userFbid = data['userFbid']
     content = data['content']
@@ -412,6 +502,16 @@ def add_feedback():
 
 @app.route("/delete_quote/<quoteId>", methods = ['DELETE'])
 def delete_quote(quoteId):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     try:
         quoteId = get_quote_id_from_echo_id(quoteId)
         quote = Quote.query.filter_by(id = quoteId).first()
@@ -427,6 +527,16 @@ def delete_quote(quoteId):
 
 @app.route("/delete_echo/<quoteId>/<userFbid>", methods = ['DELETE'])
 def delete_echo(quoteId, userFbid):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     try:
         quoteId = get_quote_id_from_echo_id(quoteId)
         user = User.query.filter_by(fbid = userFbid).first()
@@ -449,6 +559,16 @@ def delete_echo(quoteId, userFbid):
 
 @app.route("/delete_friendship/<aFbid>/<bFbid>", methods = ['DELETE'])
 def delete_friendship(aFbid, bFbid):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     try:
         userA = User.query.filter_by(fbid = aFbid).first()
         if not userA:
@@ -471,6 +591,16 @@ def delete_friendship(aFbid, bFbid):
 
 @app.route("/delete_comment/<commentId>", methods = ['DELETE'])
 def delete_comment(commentId):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     try:
         comment = Comment.query.filter_by(id = commentId).first()
         if not comment:
@@ -486,6 +616,16 @@ def delete_comment(commentId):
 
 @app.route("/delete_fav/<quoteId>/<userFbid>", methods = ['DELETE'])
 def remove_fav(quoteId, userFbid):
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     try:
         user = User.query.filter_by(fbid = userFbid).first()
         if not user:
@@ -537,6 +677,16 @@ def quote_dict_from_obj(quote):
 
 @app.route("/get_quote", methods = ['get'])
 def get_quote():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     quoteId = get_quote_id_from_echo_id(request.args.get('id'))
     userFbid = request.args.get('userFbid')
 
@@ -587,6 +737,16 @@ def get_quote():
 # TODO maybe deprecate get_quotes_with_ids? this is basically the same thing
 @app.route('/check_deleted_quotes', methods = ['post'])
 def check_deleted_quotes():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     ids = json.loads(request.values.get('data'))
 
     result = []
@@ -603,6 +763,16 @@ def check_deleted_quotes():
 
 @app.route('/get_quotes_with_ids', methods = ['post'])
 def get_quotes_with_ids():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     ids = json.loads(request.values.get('data'))
 
     result = []
@@ -620,15 +790,13 @@ def get_quotes_with_ids():
 @app.route("/get_quotes", methods = ['get'])
 def get_quotes():
 
-    # AUTH -- TODO: put in method -- decorator
+    # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
-
     token = request.args.get('token')
     try:
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
-
     #-----------------------------------
 
     fbid = request.args.get('fbid')
@@ -706,6 +874,16 @@ def get_quotes():
 
 @app.route("/get_echoers", methods = ['get'])
 def get_echoers():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     quoteId = get_quote_id_from_echo_id(request.args.get('quoteId'))
 
     try:
@@ -731,6 +909,16 @@ def get_echoers():
 
 @app.route("/get_favs", methods = ['get'])
 def get_favs():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     quoteId = get_quote_id_from_echo_id(request.args.get('quoteId'))
 
     try:
@@ -802,6 +990,16 @@ def notification_dict_from_obj(notification):
 
 @app.route("/get_notifications", methods = ['get'])
 def get_notifications():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        auth = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
     fbid = request.args.get('fbid')
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
