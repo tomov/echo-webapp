@@ -49,6 +49,7 @@ manager = tokenlib.TokenManager(secret="some_hard_to_guess_key:)", timeout=31560
 
 @app.route("/")
 def hello():
+    create_db()
     return "Hello from Python yay!"
 
 #---------------------------------------
@@ -876,24 +877,24 @@ def format_response(ret=None, error=None):
 # Note: does not comply with OAuth2 specifications - for internal use only
 
 class AuthException(Exception):
-    AUTHORIZED          = 0
     TOKEN_EXPIRED       = 1
     TOKEN_INVALID       = 2
     NOT_AUTHORIZED      = 3
-    UNKNOWN_EXCEPTION   = 4
+    UNKNOWN_EXCEPTION   = 4 # so far: user 
 
     def __init__(self, message, n=UNKNOWN_EXCEPTION):
         self.message = message
         self.n = n
 
+    # DON'T CHANGE THE AUTHEXCEPTION STRINGS
     def to_dict(self):
         return {'exception': 'AuthException', 'errno' : self.n, 'message' : self.message}
 
     def __str__(self):
         return "[%d] %s" % self.message
 
-@app.route('/token', methods = ['GET'])
-def token():
+@app.route('/get_token', methods = ['GET'])
+def get_token():
     # three cases: success, oauth error, network failure
 
     rand = random.randint(1, 100000)
@@ -910,10 +911,12 @@ def token():
 
     user = User.query.filter_by(fbid=fbid).first()
     if not user:
-        e = AuthException("Unable to validate user: user does not exist", 4)
-        return format_response(None, e)
+        db.session.add(User(fbid))
+        db.session.commit()
 
-    # if user exists, update user
+    user = User.query.filter_by(fbid=fbid).first()
+
+    # if user exists, update user in Access_Token table
     user_id = user.id
     access_token = manager.make_token({"user_id":user_id, "rand":rand})
 
@@ -933,6 +936,7 @@ def token():
 
 # determines whether the caller has access to the resources
 def authorize_user(user_id, access_token):
+# TODO: get rid of user_id
 
     try:
         parsed_token = manager.parse_token(str(access_token))
@@ -985,6 +989,17 @@ def validate(method, user_id, token):
             is_valid = False
 
     return is_valid
+
+# to be used as a decorator -- must return a callable
+def authenticate(func):
+    @wraps(func)
+    def decorated_function(user_id="", access_token="", *args, **kwargs):
+        try:
+            authorize_user(user_id, access_token)
+        except AuthException as e:
+            return format_response(None, e)
+        return func(*args, **kwargs)
+    return decorated_function
 
 
 #---------------------------------------
