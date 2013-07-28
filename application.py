@@ -54,7 +54,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI
 db.init_app(app)
 
 # open persistent connection to gateway (and feedback) server for push notifications
-apns = APNs(use_sandbox=True, cert_file='certificates/EchoAPNDevCert.pem', key_file='certificates/EchoAPNDevKey.pem')
+apns = APNs(use_sandbox=True, cert_file='certificates/this-looks-important.pem', key_file='certificates/also-important.pem')
 
 # used for auth - 1 year = 31560000, 1 month = ?, 
 manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeout=7776000)
@@ -1210,8 +1210,6 @@ def validate(method, user_id, token):
             is_valid = False
 
     return is_valid
-
-
 
 
 #---------------------------------------
