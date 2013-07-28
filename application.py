@@ -251,7 +251,7 @@ def add_notification(user, quote, type, recipient_id):
     #print 'send text ' + formatted_text['text']
     try:
         payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
-        apns.gateway_server.send_notification("884a19da5dc0a72d8aecb5ad6fe7ee2e49e9d8aacd618aedb785f067cb114de1", payload)
+        apns.gateway_server.send_notification(token_hex, payload)
     except Exception as e:
         raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
         return False
