@@ -74,23 +74,6 @@ def hello():
 #         Helper functions
 #----------------------------------------
 
-# since we consolidated echoes and quotes in one table -- echoes -- so the client now only knows echo.id's and doesn't know any quote.id's
-# so every time she passes a quoteId, it is in fact an echoId and we have to convert it
-def get_quote_id_from_echo_id(echo_id):
-    echo = Echo.query.filter_by(id=echo_id).first()
-    if not echo:
-        return None
-    return echo.quote_id
-
-def get_echo_id_from_quote_id(quote_id):
-    quote = Quote.query.filter_by(id=quote_id).first()
-    if not quote or quote.deleted:
-        return None
-    echo = Echo.query.filter_by(quote_id=quote.id, user_id=quote.reporter_id).first()
-    if not echo:
-        return None
-    return echo.id
-
 #---------------------------------------
 #         POST REQUESTS
 #----------------------------------------
@@ -671,7 +654,7 @@ def remove_fav(quoteId, userFbid):
 
 def quote_dict_from_obj(quote):
     quote_res = dict()
-    quote_res['_id'] = str(get_echo_id_from_quote_id(quote.id))
+    quote_res['_id'] = str(quote.id)
     quote_res['source_name'] = quote.source.first_name + ' ' + quote.source.last_name
     quote_res['source_picture_url'] = quote.source.picture_url
     quote_res['reporter_name'] = quote.reporter.first_name + ' ' + quote.reporter.last_name
@@ -699,7 +682,7 @@ def get_quote():
         return format_response(None, e)
     #-----------------------------------
 
-    quoteId = get_quote_id_from_echo_id(request.args.get('id'))
+    quoteId = request.args.get('id')
     userFbid = request.args.get('userFbid')
 
     try:
@@ -763,13 +746,11 @@ def check_deleted_quotes():
 
     result = []
     for id in ids:
-        id = get_quote_id_from_echo_id(id)
         quote = Quote.query.filter_by(id = id).first()
         if not quote or quote.deleted:
             result.append(None)
         else:
-            echo_id = get_echo_id_from_quote_id(id)
-            result.append({'_id': echo_id})
+            result.append({'_id': id})
 
     return format_response(result)
 
@@ -789,7 +770,6 @@ def get_quotes_with_ids():
 
     result = []
     for id in ids:
-        id = get_quote_id_from_echo_id(id)
         quote = Quote.query.filter_by(id = id).first()
         if not quote or quote.deleted:
             result.append(None)
@@ -817,8 +797,6 @@ def get_quotes():
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
     limit = request.args.get('limit')
-    if not limit:
-        limit = APIConstants.DEFAULT_GET_QUOTES_LIMIT
 
     try:
         #user = User.query.filter_by(fbid = fbid).first() # TODO: remove this
@@ -828,8 +806,9 @@ def get_quotes():
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
-        #or_conds = [or_(Quote.sourceId = friend.id, Quote.reporterId = friend.id) for friend in user.friends]
-        #or_conds.append(or_(Quote.sourceId = user.id, Quote.reporterId = user.id)) # this is very old -- not sure why I'm still keeping it
+        if not limit:
+            raise ServerException("Rishi you're not passing me a limit", \
+                ServerException.ER_BAD_PARAMS)
 
         ## construct OR condition for which quotes to pick
         if req_type == 'me':
@@ -839,34 +818,45 @@ def get_quotes():
         ids.append(user.id)
         or_conds = or_(Echo.quote.has(Quote.source_id.in_(ids)), Echo.quote.has(Quote.reporter_id.in_(ids)), Echo.user_id.in_(ids))
 
-        ## fetch quotes
+        ## fetch all quotes in user feed
         ## note that we're using the echo table as a reference to quotes, even for original ones. We're not querying the quotes table
         ## this is so we have to deal with only one id's sequence (the one for echoes) rather than two
+        ## then we manually iterate and filter by limit, upper/lower limits, etc
+        ## this is the most efficient way momchil came up to do it for now
+        echoes = Echo.query.filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).all()
+
+        # get bounds
         if latest and oldest:
             upper = int(latest)
             lower = int(oldest) 
             if lower > upper:
                 lower, upper = upper, lower
-            echoes = Echo.query.filter(or_conds, Echo.id >= lower, Echo.id <= upper, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).limit(limit).all()
         elif latest:
             lower = int(latest) 
-            echoes = Echo.query.filter(or_conds, Echo.id > lower, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).limit(limit).all()
         elif oldest:
             upper = int(oldest)
-            echoes = Echo.query.filter(or_conds, Echo.id < upper, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).limit(limit).all()
-        else:
-            echoes = Echo.query.filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).limit(limit).all()
 
-        # convert them to dictionary according to API specs
+        # iterate over feed, convert to dict according to api specs, check for upper/lower bounds
         # also remove duplicates -- only leave the oldest version of each quote that the user has seen.
         # note that for that purpose, we have the results in increasing order of id's, and we have to reverse it at the end
         seen_quote_ids = Set()
-        result = []
+        result_no_limit = []
         for echo in reversed(echoes):
             quote = echo.quote
+            # only consider first instance of quote that the user sees
             if quote.id in seen_quote_ids:
                 continue
             seen_quote_ids.add(quote.id)
+            # see if echo falls in requested bounds, if any
+            if latest and oldest:
+                if not (echo.id >= lower and echo.id <= upper):
+                    continue
+            elif latest:
+                if not (echo.id > lower):
+                    continue
+            elif oldest:
+                if not (echo.id < upper):
+                    continue
             # the echo corresponds to the original quote iff echo.user_id == quote.reporter_id
             is_echo = echo.user_id != quote.reporter_id
             if is_echo:
@@ -878,8 +868,13 @@ def get_quotes():
             quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
             quote_res['user_did_echo'] = user.id != quote.reporter_id and Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
             quote_res['is_echo'] = is_echo
-            result.append(quote_res)
-        result.reverse()
+            quote_res['order_id'] = echo.id
+            result_no_limit.append(quote_res)
+        result_no_limit.reverse()
+
+        # finally, enforce limit on result
+        limit = int(limit)
+        result = result_no_limit[0:limit]
 
         #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
         dump = json.dumps(result)
@@ -899,7 +894,7 @@ def get_echoers():
         return format_response(None, e)
     #-----------------------------------
 
-    quoteId = get_quote_id_from_echo_id(request.args.get('quoteId'))
+    quoteId = request.args.get('quoteId')
 
     try:
         quote = Quote.query.filter_by(id = quoteId).first()
@@ -934,7 +929,7 @@ def get_favs():
         return format_response(None, e)
     #-----------------------------------
 
-    quoteId = get_quote_id_from_echo_id(request.args.get('quoteId'))
+    quoteId = request.args.get('quoteId')
 
     try:
         quote = Quote.query.filter_by(id = quoteId).first()
@@ -996,7 +991,7 @@ def notification_to_text(notification):
 
 def notification_dict_from_obj(notification):
     notification_res = dict()
-    notification_res['_id'] = str(get_echo_id_from_quote_id(notification.quote_id))
+    notification_res['_id'] = str(notification.quote_id)
     notification_res['type'] = notification.type
     notification_res['unread'] = notification.unread
     notification_res['timestamp'] = datetime_to_timestamp(notification.created) # doesn't jsonify
@@ -1063,6 +1058,7 @@ class ServerException(Exception):
     ER_BAD_USER    = 2
     ER_BAD_FAV     = 3
     ER_BAD_COMMENT = 4
+    ER_BAD_PARAMS  = 5
 
     def __init__(self, message, n=ER_UNKNOWN):
         self.message = message
