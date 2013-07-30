@@ -6,6 +6,7 @@ import time
 from sqlalchemy import desc
 from pprint import pprint
 from sets import Set
+import datetime
 
 import model
 from model import db
@@ -818,12 +819,13 @@ def get_quotes():
         ids.append(user.id)
         or_conds = or_(Echo.quote.has(Quote.source_id.in_(ids)), Echo.quote.has(Quote.reporter_id.in_(ids)), Echo.user_id.in_(ids))
 
-        ## fetch all quotes in user feed
+        ## fetch all quotes in user feed, only id's first
         ## note that we're using the echo table as a reference to quotes, even for original ones. We're not querying the quotes table
         ## this is so we have to deal with only one id's sequence (the one for echoes) rather than two
         ## then we manually iterate and filter by limit, upper/lower limits, etc
         ## this is the most efficient way momchil came up to do it for now
-        echoes = Echo.query.filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(desc(Echo.id)).all()
+
+        echoes = Echo.query.with_entities(Echo.id, Echo.quote_id).filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(Echo.id)
 
         # get bounds
         if latest and oldest:
@@ -836,17 +838,18 @@ def get_quotes():
         elif oldest:
             upper = int(oldest)
 
-        # iterate over feed, convert to dict according to api specs, check for upper/lower bounds
+        # iterate over quotes in feed and get oldest instances, also filter by oldest/latest/limit/etc
         # also remove duplicates -- only leave the oldest version of each quote that the user has seen.
         # note that for that purpose, we have the results in increasing order of id's, and we have to reverse it at the end
+        # TODO FIXME this is terrible... this should be entirely MySQL side.... learn some sqlalchemy / sql and do it
         seen_quote_ids = Set()
-        result_no_limit = []
-        for echo in reversed(echoes):
-            quote = echo.quote
+        echo_ids = []
+        for echo in echoes:
+            quote_id = echo.quote_id
             # only consider first instance of quote that the user sees
-            if quote.id in seen_quote_ids:
+            if quote_id in seen_quote_ids:
                 continue
-            seen_quote_ids.add(quote.id)
+            seen_quote_ids.add(quote_id)
             # see if echo falls in requested bounds, if any
             if latest and oldest:
                 if not (echo.id >= lower and echo.id <= upper):
@@ -857,6 +860,17 @@ def get_quotes():
             elif oldest:
                 if not (echo.id < upper):
                     continue
+            echo_ids.append(echo.id)
+        echo_ids.reverse()
+        # at this point echo_ids is in descending order of id, i.e. the order in which we will return
+        limit = int(limit)
+        echo_ids = echo_ids[0:limit]
+
+        # make another request, this time for the specific echo id's... TODO FIXME super lame...
+        echoes = Echo.query.filter(Echo.id.in_(echo_ids)).order_by(desc(Echo.id))
+        result = []
+        for echo in echoes:
+            quote = echo.quote
             # the echo corresponds to the original quote iff echo.user_id == quote.reporter_id
             is_echo = echo.user_id != quote.reporter_id
             if is_echo:
@@ -869,12 +883,7 @@ def get_quotes():
             quote_res['user_did_echo'] = user.id != quote.reporter_id and Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
             quote_res['is_echo'] = is_echo
             quote_res['order_id'] = echo.id
-            result_no_limit.append(quote_res)
-        result_no_limit.reverse()
-
-        # finally, enforce limit on result
-        limit = int(limit)
-        result = result_no_limit[0:limit]
+            result.append(quote_res)
 
         #sorted_result = sorted(result, key = lambda k: k['timestamp'], reverse=True) -- we don't need this anymore, leaving it here for syntax reference on how to sort array of dictionaries
         dump = json.dumps(result)
