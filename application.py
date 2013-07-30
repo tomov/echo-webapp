@@ -307,7 +307,7 @@ def add_comment():
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
-    quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
+    quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
     content = qdata['comment']
 
@@ -346,7 +346,7 @@ def add_echo():
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
-    quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
+    quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
     try:
@@ -382,7 +382,7 @@ def add_fav():
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
-    quoteId = get_quote_id_from_echo_id(qdata['quoteId'])
+    quoteId = qdata['quoteId']
     userFbid = qdata['userFbid']
 
     try:
@@ -509,7 +509,6 @@ def delete_quote(quoteId):
     #-----------------------------------
 
     try:
-        quoteId = get_quote_id_from_echo_id(quoteId)
         quote = Quote.query.filter_by(id = quoteId).first()
         if not quote or quote.deleted:
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
@@ -534,7 +533,6 @@ def delete_echo(quoteId, userFbid):
     #-----------------------------------
 
     try:
-        quoteId = get_quote_id_from_echo_id(quoteId)
         user = User.query.filter_by(fbid = userFbid).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
@@ -629,7 +627,6 @@ def remove_fav(quoteId, userFbid):
                 ServerException.ER_BAD_USER)
         userId = user.id
 
-        quoteId = get_quote_id_from_echo_id(quoteId)
         quote = Quote.query.filter_by(id = quoteId).first()
         if not quote or quote.deleted:
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
