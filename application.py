@@ -795,25 +795,34 @@ def get_quotes():
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
     limit = request.args.get('limit')
+    profile_fbid = request.args.get('profile_fbid')
 
     try:
-        #user = User.query.filter_by(fbid = fbid).first() # TODO: remove this
-        #user = User.query.get((user_id, 571438200))
+        # fetch observing user, i.e. user who requeste the feed
         user = User.query.filter(User.id == user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
+        # if no fbid is given, we assume the user is looking at her own feed
+        if not profile_fbid:
+            profile_fbid = user.fbid
 
         if not limit:
             raise ServerException("Rishi you're not passing me a limit", \
                 ServerException.ER_BAD_PARAMS)
 
+        # fetch user whose feed we're looking at
+        profile_user = User.query.filter(User.fbid == profile_fbid).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
         ## construct OR condition for which quotes to pick
         if req_type == 'me':
             ids = []
         else:
-            ids = [friend.id for friend in user.friends]
-        ids.append(user.id)
+            ids = [friend.id for friend in profile_user.friends]
+        ids.append(profile_user.id)
         or_conds = or_(Echo.quote.has(Quote.source_id.in_(ids)), Echo.quote.has(Quote.reporter_id.in_(ids)), Echo.user_id.in_(ids))
 
         ## fetch all quotes in user feed, only id's first
@@ -821,7 +830,6 @@ def get_quotes():
         ## this is so we have to deal with only one id's sequence (the one for echoes) rather than two
         ## then we manually iterate and filter by limit, upper/lower limits, etc
         ## this is the most efficient way momchil came up to do it for now
-
         echoes = Echo.query.with_entities(Echo.id, Echo.quote_id).filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(Echo.id)
 
         # get bounds
