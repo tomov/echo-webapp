@@ -399,8 +399,7 @@ def add_fav():
         ## see if the favorite is already logged
         favorite = Favorite.query.filter_by(quote_id = quoteId, user_id = userId).first()
         if favorite:
-            raise ServerException(ErrorMessages.FAV_ALREADY_EXISTS, \
-                ServerException.ER_BAD_FAV)
+            return format_response(ErrorMessages.FAV_ALREADY_EXISTS);
 
         favorite = Favorite(quote)
         user.favs.append(favorite)
