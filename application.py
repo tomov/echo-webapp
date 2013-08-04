@@ -276,8 +276,6 @@ def add_quote():
             raise ServerException(ErrorMessages.REPORTER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
-        if content[-1:] != '.':
-            content += '.'
         quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
         # add the reporter as the first "echoer"
         # this creates a dummy entry in the echoes table that corresponds to the original quote, with echo.user_id == quote.reporter_id
@@ -966,6 +964,9 @@ def get_favs():
 def notification_to_text(notification):
     user = notification.user
     quote = notification.quote
+    content = quote.content
+    if content[-1:].isalpha() or content[-1:].isdigit():
+        content += '.'
     if notification.type == 'quote':
         return {
             'text': "{0} {1} posted a quote by you!".format(user.first_name, user.last_name),
@@ -976,7 +977,7 @@ def notification_to_text(notification):
         }
     elif notification.type == 'echo':
         return {
-            'text': "{0} {1} echoed your quote: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'text': "{0} {1} echoed your quote: \"{2}\"".format(user.first_name, user.last_name, content),
             'bold': [{
                     'location': 0,
                     'length': len(user.first_name) + len(user.last_name) + 1
@@ -992,7 +993,7 @@ def notification_to_text(notification):
         }
     elif notification.type == 'fav':
         return {
-            'text': "{0} {1} favorited your quote: \"{2}\"".format(user.first_name, user.last_name, quote.content),
+            'text': "{0} {1} favorited your quote: \"{2}\"".format(user.first_name, user.last_name, content),
             'bold': [{
                     'location': 0,
                     'length': len(user.first_name) + len(user.last_name) + 1
