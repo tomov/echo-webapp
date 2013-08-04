@@ -809,7 +809,7 @@ def get_quotes():
 
         # fetch user whose feed we're looking at
         profile_user = User.query.filter(User.fbid == profile_fbid).first()
-        if not user:
+        if not profile_user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
