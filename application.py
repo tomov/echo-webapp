@@ -237,9 +237,8 @@ def add_notification(user, quote, type, recipient_id):
         payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
         apns.gateway_server.send_notification(token_hex, payload)
     except Exception as e:
-        raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
-        return False
-    return
+        #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
+        return
 
 @app.route("/add_quote", methods = ['POST'])
 def add_quote():
