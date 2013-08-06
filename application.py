@@ -69,6 +69,7 @@ def hello():
     user = User.query.filter(User.id==6713).first()
     quote = Quote.query.filter(Quote.source_id==6713).first()
     add_notification(user, quote, 'quote', 6189)
+    create_db()
     return "Hello from Python yay!"
 
 #---------------------------------------
@@ -457,6 +458,7 @@ def add_feedback():
 
     data = json.loads(request.values.get('data'))
     content = data['content']
+    version = data['version']
    
     try:
         user = User.query.filter_by(id = user_id).first()
@@ -464,7 +466,7 @@ def add_feedback():
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
-        feedback = Feedback(user_id, content)
+        feedback = Feedback(user_id, content, version)
         db.session.add(feedback)
         db.session.commit()
         return format_response(SuccessMessages.FEEDBACK_ADDED)

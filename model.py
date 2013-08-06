@@ -169,10 +169,12 @@ class Feedback(db.Model):
     modified = db.Column(db.DateTime)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     content = db.Column(db.Text)
+    version = db.Column(db.String(length = 30))
 
-    def __init__(self, user_id, content = None):
+    def __init__(self, user_id, content = None, version = None):
         self.user_id = user_id
         self.content = content
+        self.version = version
         self.created = datetime.utcnow()
         self.modified = self.created
 
