@@ -1027,6 +1027,7 @@ def get_notifications():
     #fbid = request.args.get('fbid')
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
+    clear = request.args.get('clear')
 
     try:
         #user = User.query.filter_by(fbid = fbid).first()
@@ -1051,7 +1052,8 @@ def get_notifications():
         for notification in notifications:
             notification_res = notification_dict_from_obj(notification)
             result.append(notification_res)
-            notification.unread = False
+            if clear:
+                notification.unread = False
 
         db.session.commit() # update unreads
 
