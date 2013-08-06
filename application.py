@@ -166,7 +166,7 @@ def update_user():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
@@ -177,7 +177,6 @@ def update_user():
     first_name = None
     last_name = None
     friends_raw = None
-    fbid = udata['id']
     if 'picture_url' in udata:
         picture_url = udata['picture_url']
     if 'email' in udata:
@@ -188,7 +187,7 @@ def update_user():
         friends_raw = udata['friends']
 
     try:
-        user = User.query.filter_by(fbid = fbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             # user does not exist -- must call add_user
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
@@ -298,18 +297,17 @@ def add_comment():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
-    userFbid = qdata['userFbid']
     content = qdata['comment']
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -337,17 +335,16 @@ def add_echo():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
-    userFbid = qdata['userFbid']
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -373,17 +370,16 @@ def add_fav():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
-    userFbid = qdata['userFbid']
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -425,14 +421,11 @@ def register_token():
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
-    #userFbid = qdata['fbid']
     userDeviceToken = qdata['token']
 
     print userDeviceToken
 
     try:
-        #user = User.query.filter_by(fbid = userFbid).first()
-        #user = User.query.get(user_id)
         user = User.query.filter(User.id == user_id).first()
         if not user:
             raise ServerException(ErrorMessage.USER_NOT_FOUND, \
@@ -457,30 +450,21 @@ def add_feedback():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     data = json.loads(request.values.get('data'))
-    userFbid = data['userFbid']
     content = data['content']
    
-    print 'feedback'
-    print userFbid
-    print content
-    
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
-        userId = user.id
 
-        print userId
-        print content
-
-        feedback = Feedback(userId, content)
+        feedback = Feedback(user_id, content)
         db.session.add(feedback)
         db.session.commit()
         return format_response(SuccessMessages.FEEDBACK_ADDED)
@@ -516,20 +500,20 @@ def delete_quote(quoteId):
         return format_response(None, e)
 
 
-@app.route("/delete_echo/<quoteId>/<userFbid>", methods = ['DELETE'])
-def delete_echo(quoteId, userFbid):
+@app.route("/delete_echo/<quoteId>", methods = ['DELETE'])
+def delete_echo(quoteId):
 
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -604,20 +588,20 @@ def delete_comment(commentId):
         return format_response(None, e)
 
 
-@app.route("/delete_fav/<quoteId>/<userFbid>", methods = ['DELETE'])
-def remove_fav(quoteId, userFbid):
+@app.route("/delete_fav/<quoteId>", methods = ['DELETE'])
+def remove_fav(quoteId):
 
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     try:
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -671,13 +655,12 @@ def get_quote():
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     quoteId = request.args.get('id')
-    userFbid = request.args.get('userFbid')
 
     try:
         quote = Quote.query.filter_by(id = quoteId).first()
@@ -685,7 +668,7 @@ def get_quote():
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
 
-        user = User.query.filter_by(fbid = userFbid).first()
+        user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
@@ -1024,14 +1007,11 @@ def get_notifications():
         return format_response(None, e)
     #-----------------------------------
 
-    #fbid = request.args.get('fbid')
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
     clear = request.args.get('clear')
 
     try:
-        #user = User.query.filter_by(fbid = fbid).first()
-        #user = User.query.get(user_id)
         user = User.query.filter(User.id == user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
