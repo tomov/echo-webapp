@@ -35,6 +35,8 @@ class User(db.Model):
     picture_url = db.Column(db.Text)
     picture = db.Column(db.LargeBinary)
     registered = db.Column(db.Boolean)
+    notifprefs_id = db.Column(db.Integer, db.ForeignKey('notifprefs.id'))
+    notifprefs = db.relationship("NotifPrefs", backref="user")
     echoes = association_proxy('users_echoes', 'quote')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     feedback = db.relationship('Feedback', backref = 'user', lazy = 'dynamic')
@@ -217,6 +219,27 @@ class Notification(db.Model):
 
     def __repr__(self):
         return '<Notification %r>' % self.type
+
+class NotifPrefs(db.Model):
+    __tablename__ = 'notifprefs'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    quotes = db.Column(db.Boolean)
+    echoes = db.Column(db.Boolean)
+    comments = db.Column(db.Boolean)
+    favs = db.Column(db.Boolean)
+
+    def __init__(self):
+        self.quotes = True
+        self.echoes = True
+        self.comments = True
+        self.favs = True
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<NotifPrefs %r>' % self.user_id
 
 # call this somewhere in application.py/home, run and open home page
 # then check if db is created and then remove it

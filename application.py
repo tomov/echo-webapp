@@ -10,7 +10,7 @@ import datetime
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification
+from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification, NotifPrefs
 from model import create_db
 from constants import *
 from util import *
@@ -470,6 +470,40 @@ def add_feedback():
         db.session.add(feedback)
         db.session.commit()
         return format_response(SuccessMessages.FEEDBACK_ADDED)
+    except ServerException as e:
+        return format_response(None, e)
+
+@app.route("/set_notifprefs", methods = ['post'])
+def set_notifprefs():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        user_id = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
+    data = json.loads(request.values.get('data'))
+    quotes = data['quotes']
+    echoes = data['echoes']
+    comments = data['comments']
+    favs = data['favs']
+
+    try:
+        user = User.query.filter(User.id == user_id).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        user.notifprefs.quotes = quotes
+        user.notifprefs.echoes = echoes
+        user.notifprefs.comments = comments
+        user.notifprefs.favs = favs
+        db.session.commit()
+
+        return format_response(SuccessMessages.NOTIFPREFS_SET)
     except ServerException as e:
         return format_response(None, e)
 
@@ -1039,8 +1073,41 @@ def get_notifications():
 
         db.session.commit() # update unreads
 
-        dump = json.dumps(result)
         return format_response(result)
+    except ServerException as e:
+        return format_response(None, e)
+
+
+@app.route("/get_notifprefs", methods = ['get'])
+def get_notifprefs():
+
+    # !AUTH -- TODO: put in method -- decorator
+    #----------------------------------
+    token = request.args.get('token')
+    try:
+        user_id = authorize_user(token)
+    except AuthException as e:
+        return format_response(None, e)
+    #-----------------------------------
+
+    try:
+        user = User.query.filter(User.id == user_id).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        if not user.notifprefs:
+            user.notifprefs = NotifPrefs()
+            db.session.commit()
+
+        notifprefs = {
+            'quotes': user.notifprefs.quotes,
+            'echoes': user.notifprefs.echoes,
+            'comments': user.notifprefs.comments,
+            'favs': user.notifprefs.favs
+        }
+
+        return format_response(notifprefs)
     except ServerException as e:
         return format_response(None, e)
 
