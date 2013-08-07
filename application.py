@@ -519,18 +519,25 @@ def delete_quote(quoteId):
     #----------------------------------
     token = request.args.get('token')
     try:
-        auth = authorize_user(token)
+        user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
     #-----------------------------------
 
     try:
+        user = User.query.filter_by(id = user_id).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+            
         quote = Quote.query.filter_by(id = quoteId).first()
         if not quote or quote.deleted:
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
-        quote.deleted = True
-        db.session.commit()
+
+        if user == quote.reporter or user == quote.source:
+            quote.deleted = True
+            db.session.commit()
         return format_response(SuccessMessages.QUOTE_DELETED)
     except ServerException as e:
         return format_response(None, e)
@@ -561,7 +568,7 @@ def delete_echo(quoteId):
 
         if user in quote.echoers and user != quote.reporter and user != quote.source:
             quote.echoers.remove(user)
-        db.session.commit()
+            db.session.commit()
         return format_response(SuccessMessages.ECHO_DELETED)
     except ServerException as e:
         return format_response(None, e)
