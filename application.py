@@ -82,7 +82,7 @@ def test_notif():
     #token_hex1 = 'a6f283a5eff9cd231efb1980558795a0443833d5d6470b61e972c8f786b9ae3f' # juan
     token_hex1 = 'a951d8aba5ec3532edc6426583681e3749e2b71c9e1724219897382efd8154b0' # momchil
     #payload = Payload(alert="Someone quoted you!", sound="default", badge=1)
-    payload = Payload(alert="This is a teeest notification. Please disregard.", sound="default", badge=69)
+    payload = Payload(alert="This is a test notification. Please disregard.", sound="default", badge=69)
     apns.gateway_server.send_notification(token_hex1, payload)
     return "YES"
 
