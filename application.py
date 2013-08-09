@@ -788,7 +788,7 @@ def check_deleted_quotes():
         if not echo or not echo.quote or echo.quote.deleted:
             result.append(None)
         else:
-            result.append({'order_id': id})
+            result.append({'order_id': order_id})
 
     return format_response(result)
 
