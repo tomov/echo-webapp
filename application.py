@@ -233,14 +233,20 @@ def add_notification(user, quote, type, recipient_id):
 
     #print 'ADD NOTIFICATION from user ' + str(user.id) + ' quote ' + str(quote.id) + ' type ' + str(type) + ' for recipient ' + str(recipient_id)
     # add notification to db
-    notification = Notification(user, quote, type)
     recipient = User.query.filter_by(id=recipient_id).first()
     if not recipient:
         return
     if recipient not in user.friends:
         return
+    if not recipient.registered:
+        return
+    ids = [friend.id for friend in recipient.friends]
+    echo = Echo.query.filter(Echo.quote == quote, Echo.user_id.in_(ids)).order_by(desc(Echo.id)).first()
+
+    notification = Notification(user, quote, echo, type)
     notification.recipients.append(recipient)
     db.session.add(notification)
+
     # send push notification to device
     formatted_text = notification_to_text(notification)
     token_hex = recipient.device_token
@@ -1046,6 +1052,7 @@ def notification_to_text(notification):
 def notification_dict_from_obj(notification):
     notification_res = dict()
     notification_res['_id'] = str(notification.quote_id)
+    notification_res['order_id'] = str(notification.echo_id)
     notification_res['type'] = notification.type
     notification_res['unread'] = notification.unread
     notification_res['timestamp'] = datetime_to_timestamp(notification.created) # doesn't jsonify

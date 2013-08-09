@@ -204,14 +204,17 @@ class Notification(db.Model):
     type = db.Column(db.Enum('quote', 'echo', 'comment', 'fav'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'))
+    echo_id = db.Column(db.Integer, db.ForeignKey('echoes.id'))
     unread = db.Column(db.Boolean)
     quote = db.relationship("Quote", backref="notifications")
+    echo = db.relationship("Echo", backref="notifications")
     user = db.relationship("User", backref="notifications_authored")
     recipients = db.relationship("User", secondary = notifications_recipients, backref="notifications_received")
 
-    def __init__(self, user, quote, type=None):
+    def __init__(self, user, quote, echo, type=None):
         self.user = user
         self.quote = quote
+        self.echo = echo
         self.type = type
         self.unread = True
         self.created = datetime.utcnow()
