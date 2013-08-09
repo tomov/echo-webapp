@@ -827,7 +827,6 @@ def get_quotes():
     #-----------------------------------
 
     #fbid = request.args.get('fbid') # TODO: remove this
-    req_type = request.args.get('type')
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
     limit = request.args.get('limit')
@@ -839,22 +838,26 @@ def get_quotes():
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
-        # if no fbid is given, we assume the user is looking at her own feed
+        # if no profile_fbid is given, the user is looking at her feed
         if not profile_fbid:
             profile_fbid = user.fbid
+            req_type = 'feed'
+        # otherwise, she is looking at a profile page (potentially her own)
+        else:
+            req_type = 'profile'
 
         if not limit:
             raise ServerException("Rishi you're not passing me a limit", \
                 ServerException.ER_BAD_PARAMS)
 
-        # fetch user whose feed we're looking at
+        # fetch user whose feed/profile we're looking at
         profile_user = User.query.filter(User.fbid == profile_fbid).first()
         if not profile_user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
         ## construct OR condition for which quotes to pick
-        if req_type == 'me':
+        if req_type == 'profile':
             ids = []
         else:
             ids = [friend.id for friend in profile_user.friends]
