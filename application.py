@@ -717,13 +717,14 @@ def get_quote():
         return format_response(None, e)
     #-----------------------------------
 
-    quoteId = request.args.get('id')
+    echoId = request.args.get('order_id')
 
     try:
-        quote = Quote.query.filter_by(id = quoteId).first()
-        if not quote or quote.deleted:
-            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
-                ServerException.ER_BAD_QUOTE)
+        echo = Echo.query.filter_by(id = echoId).first()
+        if not echo:
+            raise ServerException(ErrorMessages.ECHO_NOT_FOUND, \
+                ServerException.ER_BAD_ECHO)
+        quote = echo.quote
 
         user = User.query.filter_by(id = user_id).first()
         if not user:
@@ -731,20 +732,17 @@ def get_quote():
                 ServerException.ER_BAD_USER)
 
         # TODO there is some code duplication with get_quotes below... we should think if it could be avoided
+        is_echo = echo.user_id != quote.reporter_id
+        if is_echo:
+            quote.created = echo.created
+            quote.reporter = echo.user
         quote_res = quote_dict_from_obj(quote)
- 
-        # check if quote is echo
-        ids = [friend.id for friend in user.friends]
-        ids.append(user.id)
-        quote_res['is_echo'] = 0
-        if quote.source_id not in ids and quote.reporter_id not in ids: 
-            echo = Echo.query.filter(Echo.user_id.in_(ids)).order_by(Echo.id).first()
-            quote_res['timestamp'] = datetime_to_timestamp(echo.created)
-            quote_res['is_echo'] = 1
-            quote_res['reporterFbid'] = echo.user.fbid
-
+        # TODO is there a better way to do this? e.g. user in quote.fav_users
+        # tho it might be a heavier operation behind the scenes
         quote_res['user_did_fav'] = Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
         quote_res['user_did_echo'] = user.id != quote.reporter_id and Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0
+        quote_res['is_echo'] = is_echo
+        quote_res['order_id'] = echo.id
 
         quote_res['comments'] = []
         comments = Comment.query.filter_by(quote_id = quote.id).order_by(Comment.created) # TODO figure out how to do it nicer using quote.comments with an implicit order_by defined as part of the relationship in model.py. Note that without the order_by it stil works b/c it returns them in order of creation, so technically we could still use quote.comments, however that would induce too much coupling between how sqlalchemy works and our code. Check out http://stackoverflow.com/questions/6750251/sqlalchemy-order-by-on-relationship-for-join-table 
@@ -776,15 +774,15 @@ def check_deleted_quotes():
         return format_response(None, e)
     #-----------------------------------
 
-    ids = json.loads(request.values.get('data'))
+    order_ids = json.loads(request.values.get('data'))
 
     result = []
-    for id in ids:
-        quote = Quote.query.filter_by(id = id).first()
-        if not quote or quote.deleted:
+    for order_id in order_ids:
+        echo = Echo.query.filter_by(id = order_id).first()
+        if not echo or not echo.quote or echo.quote.deleted:
             result.append(None)
         else:
-            result.append({'_id': id})
+            result.append({'order_id': id})
 
     return format_response(result)
 
@@ -1147,6 +1145,7 @@ class ServerException(Exception):
     ER_BAD_FAV     = 3
     ER_BAD_COMMENT = 4
     ER_BAD_PARAMS  = 5
+    ER_BAD_ECHO    = 6
 
     def __init__(self, message, n=ER_UNKNOWN):
         self.message = message

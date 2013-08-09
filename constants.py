@@ -22,6 +22,7 @@ class ErrorMessages:
     ECHO_ALREADY_EXISTS = "User has already echoed this quote"
     ECHO_EXISTENTIAL_CRISIS = "This echo does not exist"
     FAV_EXISTENTIAL_CRISIS = "This favorite doesn't exist"
+    ECHO_NOT_FOUND = "Echo does not exist"
 
 class SuccessMessages:
     FRIENDSHIP_ADDED = "Users friended successfully!";
