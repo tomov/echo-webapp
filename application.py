@@ -731,7 +731,10 @@ def get_quote():
             raise ServerException(ErrorMessages.ECHO_NOT_FOUND, \
                 ServerException.ER_BAD_ECHO)
         quote = echo.quote
-
+        if not quote or quote.deleted:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
+            
         user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
