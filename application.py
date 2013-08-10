@@ -66,10 +66,13 @@ manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeou
 
 @app.route("/")
 def hello():
-    user = User.query.filter(User.id==6713).first()
-    quote = Quote.query.filter(Quote.source_id==6713).first()
-    add_notification(user, quote, 'quote', 6189)
-    create_db()
+    #user = User.query.filter(User.id==6713).first()
+    #quote = Quote.query.filter(Quote.source_id==6713).first()
+    #add_notification(user, quote, 'quote', 6189)
+    #create_db()
+    #user = User.query.filter_by(id=6587).first()
+    #db.session.delete(user)
+    #db.session.commit()
     return "Hello from Python yay!"
 
 @app.route("/test_notif")
@@ -240,7 +243,7 @@ def add_notification(user, quote, type, recipient_id):
         return
     if not recipient.registered:
         return
-    ids = [friend.id for friend in recipient.friends]
+    ids = [friend.id for friend in recipient.friends] + [recipient.id]
     echo = Echo.query.filter(Echo.quote == quote, Echo.user_id.in_(ids)).order_by(desc(Echo.id)).first()
 
     notification = Notification(user, quote, echo, type)
@@ -734,7 +737,7 @@ def get_quote():
         if not quote or quote.deleted:
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
-            
+
         user = User.query.filter_by(id = user_id).first()
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
