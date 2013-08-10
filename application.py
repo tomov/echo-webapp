@@ -509,10 +509,10 @@ def set_notifprefs():
     #-----------------------------------
 
     data = json.loads(request.values.get('data'))
-    quotes = data['quotes']
-    echoes = data['echoes']
-    comments = data['comments']
-    favs = data['favs']
+    quotes = data.get('quotes')
+    echoes = data.get('echoes')
+    comments = data.get('comments')
+    favs = data.get('favs')
 
     try:
         user = User.query.filter(User.id == user_id).first()
@@ -520,10 +520,18 @@ def set_notifprefs():
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
-        user.notifprefs.quotes = quotes
-        user.notifprefs.echoes = echoes
-        user.notifprefs.comments = comments
-        user.notifprefs.favs = favs
+        if quotes is not None:
+            user.notifprefs.quotes = quotes
+            print 'set quotes!'
+        if echoes is not None:
+            user.notifprefs.echoes = echoes
+            print 'set echoes!'
+        if comments is not None:
+            user.notifprefs.comments = comments
+            print 'set comments!'
+        if favs is not None:
+            user.notifprefs.favs = favs
+            print 'set favs!'
         db.session.commit()
 
         return format_response(SuccessMessages.NOTIFPREFS_SET)
