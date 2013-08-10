@@ -742,6 +742,7 @@ def get_quote():
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
+        ids = [friend.id for friend in user.friends] + [user.id]
 
         # TODO there is some code duplication with get_quotes below... we should think if it could be avoided
         is_echo = echo.user_id != quote.reporter_id
