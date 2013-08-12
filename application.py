@@ -244,7 +244,7 @@ def add_notification(user, quote, type, recipient_id):
     if not recipient.registered:
         return
     ids = [friend.id for friend in recipient.friends] + [recipient.id]
-    echo = Echo.query.filter(Echo.quote == quote, Echo.user_id.in_(ids)).order_by(desc(Echo.id)).first()
+    echo = Echo.query.filter(Echo.quote == quote, Echo.user_id.in_(ids)).order_by(Echo.id).first()
 
     notification = Notification(user, quote, echo, type)
     notification.recipients.append(recipient)
@@ -522,16 +522,12 @@ def set_notifprefs():
 
         if quotes is not None:
             user.notifprefs.quotes = quotes
-            print 'set quotes!'
         if echoes is not None:
             user.notifprefs.echoes = echoes
-            print 'set echoes!'
         if comments is not None:
             user.notifprefs.comments = comments
-            print 'set comments!'
         if favs is not None:
             user.notifprefs.favs = favs
-            print 'set favs!'
         db.session.commit()
 
         return format_response(SuccessMessages.NOTIFPREFS_SET)
