@@ -496,6 +496,19 @@ def add_feedback():
     except ServerException as e:
         return format_response(None, e)
 
+# TODO this is just for Apple
+@app.route('/add_feedback_from_support', methods = ['POST'])
+def add_feedback_from_support():
+    name = request.form['name']
+    email = request.form['email']
+    text = request.form['text']
+
+    content = json.dumps({'name': name, 'email': email, 'text': text});
+    feedback = Feedback(6416, content)
+    db.session.add(feedback)
+    db.session.commit()
+    return '<p style="align: center">Thank you for your feedback! We will review it and get back to you as soon as possible.</p>'
+
 @app.route("/set_notifprefs", methods = ['post'])
 def set_notifprefs():
 
