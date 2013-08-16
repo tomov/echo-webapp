@@ -244,6 +244,26 @@ class NotifPrefs(db.Model):
     def __repr__(self):
         return '<NotifPrefs %r>' % self.user_id
 
+class APIEvent(db.Model):
+    __tablename__ = 'apievents'
+    id = db.Column(db.Integer, primary_key = True)
+    created = db.Column(db.DateTime)
+    modified = db.Column(db.DateTime)
+    name = db.Column(db.String(length = 50))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    count = db.Column(db.Integer)
+    user = db.relationship("User", backref="api_events")
+
+    def __init__(self, user_id, name):
+        self.user_id = user_id
+        self.name = name
+        self.count = 1
+        self.created = datetime.utcnow()
+        self.modified = self.created
+
+    def __repr__(self):
+        return '<APIEvent %r by %s>' % (self.name, self.user_id)
+
 # call this somewhere in application.py/home, run and open home page
 # then check if db is created and then remove it
 # TODO (mom) I know, it's super ghetto, but that's the easiest way for now
