@@ -54,9 +54,6 @@ app.config.update(
 app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI 
 db.init_app(app)
 
-# open persistent connection to gateway (and feedback) server for push notifications
-apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')
-
 # used for auth - 1 year = 31560000, 1 month = ?, 
 manager = tokenlib.TokenManager(secret="sL/mZPxS:]CI)@OWpP!GR9![a.&{i)i", timeout=7776000)
 
@@ -85,13 +82,17 @@ def test_notif():
     #token_hex1 = 'a6f283a5eff9cd231efb1980558795a0443833d5d6470b61e972c8f786b9ae3f' # juan
     token_hex1 = 'a951d8aba5ec3532edc6426583681e3749e2b71c9e1724219897382efd8154b0' # momchil
     #payload = Payload(alert="Someone quoted you!", sound="default", badge=1)
-    payload = Payload(alert="This is a test notification. Please disregard.", sound="default", badge=69)
-    apns.gateway_server.send_notification(token_hex1, payload)
+    send_notification(token_hex1, "this is a test notification")
     return "YES"
 
 #---------------------------------------
 #         Helper functions
 #----------------------------------------
+
+def send_notification(token_hex, text):
+    apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')
+    payload = Payload(alert=text, sound="default", badge=0)
+    apns.gateway_server.send_notification(token_hex, payload)
 
 #---------------------------------------
 #         POST REQUESTS
@@ -257,8 +258,7 @@ def add_notification(user, quote, type, recipient_id):
         return
     #print 'send text ' + formatted_text['text']
     try:
-        payload = Payload(alert=formatted_text['text'], sound="default", badge=0)
-        apns.gateway_server.send_notification(token_hex, payload)
+        send_notification(token_hex, formatted_text['text'])
     except Exception as e:
         #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
         return
