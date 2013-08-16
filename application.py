@@ -10,7 +10,7 @@ import datetime
 
 import model
 from model import db
-from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification, NotifPrefs
+from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification, NotifPrefs, APIEvent
 from model import create_db
 from constants import *
 from util import *
@@ -20,6 +20,9 @@ import urllib
 import urllib2
 import tokenlib
 import random
+
+# for tracking
+import mixpanel
 
 # for push notifications
 from apns import APNs, Payload
@@ -66,7 +69,7 @@ def hello():
     #user = User.query.filter(User.id==6713).first()
     #quote = Quote.query.filter(Quote.source_id==6713).first()
     #add_notification(user, quote, 'quote', 6189)
-    #create_db()
+    create_db()
     #user = User.query.filter_by(id=6587).first()
     #db.session.delete(user)
     #db.session.commit()
@@ -93,6 +96,15 @@ def send_notification(token_hex, text):
     apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')
     payload = Payload(alert=text, sound="default", badge=0)
     apns.gateway_server.send_notification(token_hex, payload)
+
+def track_event(user_id, name):
+    event = APIEvent.query.filter_by(user_id=user_id, name=name).first()
+    if event:
+        event.count = event.count + 1
+    else:
+        event = APIEvent(user_id, name)
+        db.session.add(event)
+    db.session.commit()
 
 #---------------------------------------
 #         POST REQUESTS
@@ -138,6 +150,7 @@ def add_user():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "add_user")
     #-----------------------------------
 
     udata = json.loads(request.values.get('data'))
@@ -188,6 +201,7 @@ def update_user():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "update_user")
     #-----------------------------------
 
     udata = json.loads(request.values.get('data'))
@@ -273,6 +287,7 @@ def add_quote():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "add_quote")
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
@@ -324,6 +339,7 @@ def add_comment():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "add_comment")
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
@@ -362,6 +378,7 @@ def add_echo():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "add_echo")
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
@@ -397,6 +414,7 @@ def add_fav():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "add_fav")
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
@@ -442,6 +460,7 @@ def register_token():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "register_token")
     #-----------------------------------
 
     qdata = json.loads(request.values.get('data'))
@@ -477,6 +496,7 @@ def add_feedback():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "add_feedback")
     #-----------------------------------
 
     data = json.loads(request.values.get('data'))
@@ -519,6 +539,7 @@ def set_notifprefs():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "set_notifprefs")
     #-----------------------------------
 
     data = json.loads(request.values.get('data'))
@@ -562,6 +583,7 @@ def delete_quote(quoteId):
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "delete_quote")
     #-----------------------------------
 
     try:
@@ -593,6 +615,7 @@ def delete_echo(quoteId):
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "delete_echo")
     #-----------------------------------
 
     try:
@@ -624,6 +647,7 @@ def delete_friendship(aFbid, bFbid):
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "delete_friendship")
     #-----------------------------------
 
     try:
@@ -656,6 +680,7 @@ def delete_comment(commentId):
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "delete_comment")
     #-----------------------------------
 
     try:
@@ -681,6 +706,7 @@ def remove_fav(quoteId):
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "remove_fav")
     #-----------------------------------
 
     try:
@@ -741,6 +767,7 @@ def get_quote():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "get_quote")
     #-----------------------------------
 
     echoId = request.args.get('order_id')
@@ -802,6 +829,7 @@ def check_deleted_quotes():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "check_deleted_quotes")
     #-----------------------------------
 
     order_ids = json.loads(request.values.get('data'))
@@ -826,6 +854,7 @@ def get_quotes_with_ids():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "get_quotes_with_ids")
     #-----------------------------------
 
     ids = json.loads(request.values.get('data'))
@@ -852,6 +881,7 @@ def get_quotes():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "get_quotes")
     #-----------------------------------
 
     #fbid = request.args.get('fbid') # TODO: remove this
@@ -973,6 +1003,7 @@ def get_echoers():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "get_echoers")
     #-----------------------------------
 
     quoteId = request.args.get('quoteId')
@@ -1008,6 +1039,7 @@ def get_favs():
         auth = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(auth, "get_favs")
     #-----------------------------------
 
     quoteId = request.args.get('quoteId')
@@ -1094,6 +1126,7 @@ def get_notifications():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "get_notifications")
     #-----------------------------------
 
     unread_only = request.args.get('unread_only')
@@ -1141,6 +1174,7 @@ def get_notifprefs():
         user_id = authorize_user(token)
     except AuthException as e:
         return format_response(None, e)
+    track_event(user_id, "get_notifprefs")
     #-----------------------------------
 
     try:
