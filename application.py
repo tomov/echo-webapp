@@ -171,6 +171,8 @@ def add_user():
             # user was pre-signed up by a friend but that's the first time she's logging in
             user.registered = True
             user.email = email
+            if unfriends_raw is None:
+                user.friends.clear()
             add_friends(user, friends_raw)
             remove_friends(user, unfriends_raw)
         else:
@@ -179,6 +181,8 @@ def add_user():
             user.email = email
             user.first_name = first_name
             user.last_name = last_name
+            if unfriends_raw is None:
+                user.friends.clear()
             add_friends(user, friends_raw)
             remove_friends(user, unfriends_raw)
 
