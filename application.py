@@ -1069,38 +1069,40 @@ def notification_to_text(notification):
     user = notification.user
     quote = notification.quote
     content = quote.content
+    first_name = user.first_name.encode('utf8')
+    last_name = user.last_name.encode('utf8')
     if content[-1:].isalpha() or content[-1:].isdigit():
         content += '.'
     if notification.type == 'quote':
         return {
-            'text': "{0} {1} posted a quote by you!".format(user.first_name, user.last_name),
+            'text': "{0} {1} posted a quote by you!".format(first_name., last_name),
             'bold': [{
                     'location': 0,
-                    'length': len(user.first_name) + len(user.last_name) + 1
+                    'length': len(first_name) + len(last_name) + 1
                 }]
         }
     elif notification.type == 'echo':
         return {
-            'text': "{0} {1} echoed your quote: \"{2}\"".format(user.first_name, user.last_name, content),
+            'text': "{0} {1} echoed your quote: \"{2}\"".format(first_name, last_name, content),
             'bold': [{
                     'location': 0,
-                    'length': len(user.first_name) + len(user.last_name) + 1
+                    'length': len(first_name) + len(last_name) + 1
                 }]
         }
     elif notification.type == 'comment':
         return {
-            'text': "{0} {1} commented on your quote.".format(user.first_name, user.last_name, quote.content),
+            'text': "{0} {1} commented on your quote.".format(first_name, last_name, quote.content),
             'bold': [{
                     'location': 0,
-                    'length': len(user.first_name) + len(user.last_name) + 1
+                    'length': len(first_name) + len(last_name) + 1
                 }]
         }
     elif notification.type == 'fav':
         return {
-            'text': "{0} {1} favorited your quote: \"{2}\"".format(user.first_name, user.last_name, content),
+            'text': "{0} {1} favorited your quote: \"{2}\"".format(first_name, last_name, content),
             'bold': [{
                     'location': 0,
-                    'length': len(user.first_name) + len(user.last_name) + 1
+                    'length': len(first_name) + len(last_name) + 1
                 }]
         }
     else:
