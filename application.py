@@ -1075,7 +1075,7 @@ def notification_to_text(notification):
         content += '.'
     if notification.type == 'quote':
         return {
-            'text': "{0} {1} posted a quote by you!".format(first_name., last_name),
+            'text': "{0} {1} posted a quote by you!".format(first_name, last_name),
             'bold': [{
                     'location': 0,
                     'length': len(first_name) + len(last_name) + 1
