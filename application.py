@@ -135,6 +135,8 @@ def remove_friends(user, unfriends_raw):
             continue
         if friend in user.friends:
             user.friends.remove(friend)
+        if user in friend.friends:
+            friend.friends.remove(user)
 
 # also functions as update_user
 @app.route("/add_user", methods = ['POST'])
@@ -255,11 +257,11 @@ def add_notification(user, quote, type, recipient_id):
     recipient = User.query.filter_by(id=recipient_id).first()
     if not recipient:
         return
-    if recipient not in user.friends:
+    if recipient not in user.all_friends:
         return
     if not recipient.registered:
         return
-    ids = [friend.id for friend in recipient.friends] + [recipient.id]
+    ids = [friend.id for friend in recipient.all_friends] + [recipient.id]
     echo = Echo.query.filter(Echo.quote == quote, Echo.user_id.in_(ids)).order_by(Echo.id).first()
 
     notification = Notification(user, quote, echo, type)
@@ -787,7 +789,7 @@ def get_quote():
         if not user:
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
-        ids = [friend.id for friend in user.friends] + [user.id]
+        ids = [friend.id for friend in user.all_friends] + [user.id]
 
         # TODO there is some code duplication with get_quotes below... we should think if it could be avoided
         is_echo = echo.user_id != quote.reporter_id
@@ -919,7 +921,7 @@ def get_quotes():
         if req_type == 'profile':
             ids = []
         else:
-            ids = [friend.id for friend in profile_user.friends]
+            ids = [friend.id for friend in profile_user.all_friends]
         ids.append(profile_user.id)
         or_conds = or_(Echo.quote.has(Quote.source_id.in_(ids)), Echo.quote.has(Quote.reporter_id.in_(ids)), Echo.user_id.in_(ids))
 
