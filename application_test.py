@@ -12,971 +12,433 @@ from copy import copy
 import application
 import model
 from model import db
-from model import User, Quote, Comment, Favorite
+from model import User, Quote, Comment, Favorite, Echo
 from constants import *
 from test_data import *
 from util import *
 
+# DO NOT TOUCH THIS!!!!! If you do, you might fuck up the real db, and Momchil will personally come find you and behead you in your sleep
 TEST_DATABASE_NAME = 'echo_webapp_test'
-TEST_DATABASE_URI = DatabaseConstants.DATABASE_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
+TEST_DATABASE_URI = DatabaseConstants.DATABASE_LOCAL_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
 
 #: these lines will be used throughout for debugging purposes
 print '===> _before: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
 
-class ApplicationTestCase(unittest.TestCase):
-
+class TestBase(unittest.TestCase):
 
     def setUp(self): #: called before each individual test function is run
-        ''' Uncomment this to use a tempfile for db
-        self.db_fd, application.app.config['DATABASE'] = tempfile.mkstemp()
-        application.app.config['TESTING'] = True
-
-        application.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + application.app.config['DATABASE']
-        '''
-
         application.app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
-
-        print '===> setup: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
+        print '\n===> setup: using db -- ' + application.app.config['SQLALCHEMY_DATABASE_URI']
 
         db.app = application.app
         self.app = application.app.test_client()
-
         db.create_all() #: initialize all tables
 
     def tearDown(self): #: called after the test is run (close shit)
-        # os.close(self.db_fd)
-        # os.unlink(application.app.config['DATABASE'])
-        
         db.session.remove() # REALLY IMPORTANT to do this before the one below, otherwise can't run more than one test
         db.drop_all() #: get rid of tables
-
         print '===> teardown: end'
 
-    ## TODO this is legacy from Chris, see how can possibly make useful 
-    def add_sample_data(self):
-        #: sample users
-        user1 = User(1, 'user1@somesite.com', 'User', 'One', None, None, True)
-        user2 = User(2, 'user2@somesite.com', 'User', 'Two', None, None, True)
-        user3 = User(3, 'user3@somesite.com', 'User', 'Three', None, None, True)
 
-        user1.friends.append(user2)
-        user1.friends.append(user3)
-        user2.friends.append(user1)
-        user3.friends.append(user1)
+class MockUserData():
 
-        db.session.add(user1)
-        db.session.add(user2)
-        db.session.add(user3)
+    user_simple = {
+        "id": "12345",
+        "email": "example@gmail.com",
+        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc7/370214_100000486204833_1328204472_q.jpg",
+        "name": "Lonely Loner", 
+        "friends": [],
+        "unfriends": []
+    }
 
+    user_with_friends = {
+        "id": "67890",
+        "email": "yolobro@gmail.com",
+        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc6/274340_1778127543_1201810974_q.jpg",
+        "name": "John Smith", 
+        "friends": [
+            {
+                "id": user_simple['id'],
+                "name": user_simple['name'],
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_2070708925_q.jpg"
+                    }
+                }, 
+            },
+            {
+                "id": "1778127543", 
+                "name": "Michele Alex",
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/370322_100002571158857_1251482889_q.jpg"
+                    }
+                }, 
+            },
+            {
+                "id": "100001040617130", 
+                "name": "Momchil's Mom",
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc6/275685_100001040617130_24180076_q.jpg"
+                    }
+                }, 
+            },
+        ],
+        "unfriends": []
+    }
+
+    # see HARDCODED below if you change this guy
+    user_with_friends_update = {
+        "id": user_with_friends['id'],
+        "email": "new_email@gmail.com",
+        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc6/274340_1778127543_1201810974666666.jpg",
+        "name": "John Smith", 
+        "friends": [
+            {
+                "id": user_simple['id'],
+                "name": user_simple['name'],
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_2070708925_q.jpg"
+                    }
+                }, 
+            },
+            {
+                "id": "11324123412341234", 
+                "name": "Somebody New",
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_20707089251111_q.jpg"
+                    }
+                }, 
+            }
+        ],
+        "unfriends": [user_with_friends['friends'][1]['id'], user_with_friends['friends'][2]['id'], "1000000000000000000"]
+    }
+
+    user_unicode_simple = {
+        "id": "54321",
+        "email": "baihui@abv.bg",
+        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc7/370214_100000486204833_1328204472_qq123.jpg",
+        "name": "Бай Хуй",
+        "friends": [],
+        "unfriends": []
+    }
+
+class UserAPIHelpers():
+
+    def get_token_for_user_with_fbid(self, user_fbid):
+        rv = self.app.get('/get_token?fbid=%s&token=universal_access_token_TODO_this_must_be_gone_ASAP--see_facebook_test_users' % user_fbid)
+        rv = json.loads(rv.data)
+        return rv['access_token'];
+
+    def add_user(self, user_dict):
+        token = self.get_token_for_user_with_fbid(user_dict['id'])
+        self.app.post('/add_user?token=%s' % token, data=dict(data=json.dumps(user_dict)))
+
+
+class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
+
+    # ------------- helpers -------------
+
+    def assert_is_same_user_simple(self, user, user_dict):
+        self.assertIsNotNone(user)
+        self.assertTrue(user.registered)
+        self.assertEqual(user.email, user_dict['email'].decode('utf-8'))
+        self.assertEqual(user.picture_url, user_dict['picture_url'])
+        self.assertEqual(user.fbid, user_dict['id'])
+        first, last = split_name(user_dict['name'].decode('utf-8'))
+        self.assertEqual(user.first_name, first.decode('utf-8'))
+        self.assertEqual(user.last_name, last.decode('utf-8'))
+        self.assertEqual(len(user.all_friends), len(user_dict['friends']))
+
+    def assert_is_same_user_with_friends(self, user, user_dict):
+        self.assert_is_same_user_simple(user, user_dict)
+        all_friends_dicts = []
+        for friend in user.all_friends:
+            friend_dict = {
+                "id": friend.fbid,
+                "name": friend.first_name + " " + friend.last_name,
+                "picture": {
+                    "data": {
+                        "url": friend.picture_url
+                    }
+                }
+            }
+            all_friends_dicts.append(friend_dict)
+        self.assertItemsEqual(all_friends_dicts, user_dict['friends'])
+
+    def assert_friends_reciprocity(self, user):
+        self.assertIsNotNone(user)
+        for friend in user.all_friends:
+            self.assertTrue(user in friend.all_friends)
+
+    # ------------- tests -------------
+
+    def _test_get_token(self):
+        token = self.get_token_for_user_with_fbid(self.user_simple['id'])
+        self.assertEqual(User.query.count(), 1) # hollow profile is created
+
+    def _test_add_user_simple(self):
+        self.add_user(self.user_simple)
+        self.assertEqual(User.query.count(), 1) # user info is updated (no new user is created)
+
+        user = User.query.first()
+        self.assert_is_same_user_simple(user, self.user_simple)
+
+    def _test_add_user_with_friends(self):
+        self.add_user(self.user_with_friends)
+        self.assertEqual(User.query.count(), 1 + len(self.user_with_friends['friends'])) # friends are added as users
+
+        user = User.query.first()
+        self.assert_is_same_user_with_friends(user, self.user_with_friends) # user and friend data is ok
+        self.assert_friends_reciprocity(user) # friend relationships are symmetrical
+
+    def _test_add_user_with_friends_extended(self):
+        self.add_user(self.user_simple)
+        self.add_user(self.user_with_friends)
+        self.assertEqual(User.query.count(), 1 + len(self.user_with_friends['friends'])) # existing friend is not duplicated
+
+        user = User.query.filter_by(fbid=self.user_with_friends['id']).first()
+        self.assert_is_same_user_with_friends(user, self.user_with_friends) # existing friend picture_url is updated
+        self.assert_friends_reciprocity(user) # existing friend knows about new user
+
+        self.add_user(self.user_with_friends_update)
+        self.assertEqual(User.query.count(), 1 + len(self.user_with_friends['friends']) + 1) # HARDCODED + 1 user -- one new friend and new user
+
+        user = User.query.filter_by(fbid=self.user_with_friends_update['id']).first()
+        self.assert_is_same_user_with_friends(user, self.user_with_friends_update) # friends and data is updated. Notice one friend is duplicate and one unfriend is non-existing
+        self.assert_friends_reciprocity(user) # new relationship is symmetrical
+
+        for user in User.query.all(): # unfriends are unfriended and it's symmetrical, also HARDCODED
+            if user.fbid != self.user_with_friends_update['id']:
+                if user.fbid in self.user_with_friends_update['unfriends']:
+                    self.assertEqual(len(user.all_friends), 0)
+                else:
+                    self.assertEqual(len(user.all_friends), 1)
+
+    def _test_user_unicode(self):
+        self.add_user(self.user_unicode_simple)
+        self.assertEqual(User.query.count(), 1) # user added
+
+        user = User.query.first()
+        self.assert_is_same_user_simple(user, self.user_unicode_simple)
+
+    def _test_user_invalid(self):
+        # TODO implement once we have test users
+        pass
+
+
+class MockQuoteData():
+
+    quote_minimal = {
+        "quote": "Here’s to the crazy ones. The misfits. The rebels. The troublemakers. The round pegs in the square holes.",
+        "reporterFbid": MockUserData.user_simple['id'],
+        "sourceFbid": MockUserData.user_with_friends['id']
+    }
+
+    quote_normal = {
+        "location": "Randomtown, USA",
+        "location_lat": 2343.34352,
+        "location_long": 34642.45,
+        "quote": "This is a sample quote with no particular entertainment value.",
+        "reporterFbid": MockUserData.user_simple['id'],
+        "sourceFbid": MockUserData.user_with_friends['id']
+    }
+
+    quote_unicode = {
+        "quote": "От една страна си ебало майката, от друга страна майката си ебало!!!",
+        "reporterFbid": MockUserData.user_with_friends['id'],
+        "sourceFbid": MockUserData.user_unicode_simple['id']
+    }
+
+    quote_invalid_source = {
+        "quote": "Here's to the crazy ones. The misfits. The rebels. The troublemakers. The round pegs in the square holes.",
+        "reporterFbid": MockUserData.user_simple['id'],
+        "sourceFbid": "100000000000000001"
+    }
+
+    quote_invalid_reporter = {
+        "quote": "Here's to the crazy ones. The misfits. The rebels. The troublemakers. The round pegs in the square holes.",
+        "reporterFbid": "100000000000000001",
+        "sourceFbid": MockUserData.user_with_friends['id']
+    }
+
+    quote_same_source_reporter = {
+        "quote": "The inability to quote yourself removes the narcissistic element from Echo, ensuring all of our content is original, spontaneous, honest, and funny",
+        "reporterFbid": MockUserData.user_simple['id'],
+        "sourceFbid": MockUserData.user_simple['id']
+    }
+
+class QuoteAPIHelpers(UserAPIHelpers):
+
+    def add_quote(self, quote_dict, user_fbid = None):
+        if user_fbid is None:
+            user_fbid = quote_dict['reporterFbid']
+        token = self.get_token_for_user_with_fbid(user_fbid)
+        self.app.post('/add_quote?token=%s' % token, data=dict(data=json.dumps(quote_dict)))
+
+    def add_quote_to_db(self, quote_dict):
+        source = User.query.filter_by(fbid=quote_dict['sourceFbid']).first()
+        reporter = User.query.filter_by(fbid = quote_dict['reporterFbid']).first()
+        if not source:
+            return False
+        if not reporter:
+            return False
+        quote = Quote(source.id, 
+            reporter.id, 
+            quote_dict['quote'], 
+            quote_dict.get('location'), 
+            quote_dict.get('location_lat'), 
+            quote_dict.get('location_long'), 
+            False)
+        quote.echoers.append(reporter)
+        db.session.add(quote)
         db.session.commit()
-
-        #: sample quotes
-        entry_user1 = User.query.filter_by(fbid=1).first()
-        entry_user2 = User.query.filter_by(fbid=2).first()
-        entry_user3 = User.query.filter_by(fbid=3).first()
-        
-        quote1 = Quote(entry_user1.id, entry_user2.id, 'Test Q1 -- Source: 1, Reporter: 2', 'Princeton, NJ', False)
-        quote2 = Quote(entry_user1.id, entry_user3.id, 'Test Q2 -- Source: 1, Reporter: 3', 'Princeton, NJ', False)
-        quote3 = Quote(entry_user2.id, entry_user1.id, 'Test Q3 -- Source: 2, Reporter: 1', 'Princeton, NJ', False)
-
-        db.session.add(quote1)
-        db.session.add(quote2)
-        db.session.add(quote3)
-
-        db.session.commit() #: commit changes to db, otherwise it will rollback
-
-    def assert_is_same_user(self, user, json):
-        assert user is not None
-        assert user.fbid == json['id']
-        assert user.email == json['email']
-        assert user.picture_url == json['picture_url']
-        first, last = split_name(json['name'])
-        assert user.first_name == first
-        assert user.last_name == last
-        assert len(user.friends) == len(json['friends'])
-
-        for friend in json['friends']:
-            user = User.query.filter_by(fbid = friend["id"]).first()
-            assert user is not None
-            first, last = split_name(friend['name'])
-            assert user.first_name == first
-            assert user.last_name == last
-            assert user.picture_url == friend['picture']['data']['url']
-
-
-    def assert_is_same_quote(self, quote, json):
-        source = User.query.filter_by(fbid = json['sourceFbid']).first()
-        assert source
-        assert quote.source_id == source.id
-        reporter = User.query.filter_by(fbid = json['reporterFbid']).first()
-        assert reporter
-        assert quote.reporter_id == reporter.id 
-        assert quote.location == json['location']
-        assert quote.location_lat == json['location_lat']
-        assert quote.location_long == json['location_long']
-        assert quote.content == json['quote']
-        if 'source_picture_url' in json:
-            assert quote.source.picture_url == json['source_picture_url']
-        if 'source_name' in json:
-            assert quote.source.first_name + ' ' + quote.source.last_name == json['source_name']
-
-    def assert_is_same_comment(self, comment, json):
-        user = User.query.filter_by(fbid = json['userFbid']).first()
-        assert user 
-        assert comment.user_id == user.id
-        quote = Quote.query.filter_by(id = json['quoteId']).first()
-        assert quote
-        assert comment.quote_id == quote.id
-        assert comment.content == json['comment']
-
-    ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
-    def assert_is_same_quote_jsononly(self, quote, json):
-        assert quote['location'] == json['location']
-        assert quote['location_lat'] == json['location_lat']
-        assert quote['location_long'] == json['location_long']
-        assert quote['quote'] == json['quote']
-        assert str(quote['sourceFbid']) == str(json['sourceFbid'])
-        assert str(quote['reporterFbid']) == str(json['reporterFbid'])
-        assert int(quote['timestamp']) > 1000000
-        assert int(quote['_id']) > 0
-
-    def assert_is_same_list_of_quotes(self, quotes, json_list, reverse = True):
-        assert len(quotes) == len(json_list)
-        if reverse:
-            json_list.reverse()
-        for quote, json in zip(quotes, json_list):
-            if not quote:
-                assert not json
-            else:
-                self.assert_is_same_quote_jsononly(quote, json)
-
-    # same as above but only test the is_echoed property; that's b/c this is subjective based on who is asking, so
-    # cannot be hardcoded in the test_data file and passed as part of the json
-    def assert_is_same_list_of_is_echoed(self, quotes, is_echo_list, reverse = True):
-        assert len(quotes) == len(is_echo_list)
-        if reverse:
-            is_echo_list.reverse()
-        for quote, is_echo in zip(quotes, is_echo_list):
-            if not quote:
-                assert not is_echo
-            else:
-                assert quote['is_echo'] == is_echo
-
-     ## note the first json version is the one returned by the api call, the second one is the one stored in the test_data file (so it has less fields e.g. no timestamp and no id)
-    def assert_is_same_comment_jsononly(self, comment, json, is_friend):
-        assert str(comment['fbid']) == str(json['userFbid'])
-        assert str(comment['comment']) == str(json['comment'])
-        user = User.query.filter_by(fbid = json['userFbid']).first()
-        assert user
-        assert comment['name'] == user.first_name + ' ' + user.last_name
-        assert comment['picture_url'] == user.picture_url
-        quote_id = Comment.query.filter_by(id = comment['id']).first().quote_id
-        assert quote_id == json['quoteId']
-        assert int(comment['timestamp']) > 1000000
-        assert int(comment['id']) > 0
-
-    def assert_is_same_fav(self, favorite, json):
-        assert favorite.quote.id == json["quoteId"]
-        assert int(favorite.user.fbid) == json["userFbid"]
-
- 
-# ----------------------------------------------------------------------
-# Tests. Note: test functions must begin with "test" i.e. test_something
-# ----------------------------------------------------------------------
-   
-    def test_util(self):
-        print "\n ------- begin test util ------\n"
-
-        first, last = split_name('')
-        assert first == last
-        assert last == ''
-
-        first, last = split_name('hello')
-        assert first == 'hello'
-        assert last == ''
-
-        first, last = split_name('Jacob Simon')
-        assert first == 'Jacob'
-        assert last == 'Simon'
-
-        first, last = split_name('Momchil Slavchev Tomov')
-        assert first == 'Momchil'
-        assert last == 'Tomov'
-
-        first, last = split_name(u'Момчил Славчев Томов') # test unicode
-        assert first == 'Момчил'
-        assert last == 'Томов'
-
-        print "\n ------- end test util ------- \n"
-
-
-    def test_add_user(self):
-        # insert a single user and make sure everything's correct
-        print "\n------- begin single test -------\n"
-
-        assert len(User.query.all()) == 0
-        george_dump = json.dumps(RandomUsers.george)
-        rv = self.app.post('/add_user', data = dict(data=george_dump))
-        assert len(User.query.all()) == 5   # hardcoded for clarity
-
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(user, RandomUsers.george)
-        assert user.registered
-
-        print "\n-------- end single test --------\n"
-
-
-    def test_update_user(self):
-        print "\n------- begin single test -------\n"
-
-        # insert george so we can play with him
-        george_dump = json.dumps(RandomUsers.george)
-        rv = self.app.post('/add_user', data = dict(data=george_dump))
-
-        # create a user we'll keep updating here to compare with the one in the db
-        george_new = copy(RandomUsers.george)
-
-        # change name only and make sure it's the same
-        delta = {'id': RandomUsers.george['id'], 'name': 'Oh God'}
-        george_new.update(delta)
-        delta_dump = json.dumps(delta)
-        rv = self.app.post('/update_user', data = dict(data=delta_dump))
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(user, george_new)
-
-        # change email only
-        delta = {'id': RandomUsers.george['id'], 'email': 'hahahha@gmail.com'}
-        george_new.update(delta)
-        delta_dump = json.dumps(delta)
-        rv = self.app.post('/update_user', data = dict(data=delta_dump))
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(user, george_new)
-
-        # change picture_url only
-        delta = {'id': RandomUsers.george['id'], 'picture_url': 'http://www.google.com/thisisnotarealurl'}
-        george_new.update(delta)
-        delta_dump = json.dumps(delta)
-        rv = self.app.post('/update_user', data = dict(data=delta_dump))
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(user, george_new)
-
-        # update friends only (add angela's friends)
-        delta = {'id': RandomUsers.george['id'], 'friends': RandomStuff.not_friends_with_george}
-        george_new['friends'].extend(RandomStuff.not_friends_with_george)
-        delta_dump = json.dumps(delta)
-        rv = self.app.post('/update_user', data = dict(data=delta_dump))
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(user, george_new)
-
-        # udpate george back to normal (except for friends, can't remove the new ones)
-        # we also do this so that he appears correct in angela's friend list once we add her below
-        george_dump = json.dumps(RandomUsers.george)
-        rv = self.app.post('/update_user', data = dict(data=george_dump))
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert len(george.friends) == 7 # hardcoded for extra protection
-
-        # insert angela so we can play with her too
-        angela_dump = json.dumps(RandomUsers.angela)
-        rv = self.app.post('/add_user', data = dict(data=angela_dump))
-        # update angela completely and make sure she's updated correctly
-        angela_new = {
-            'id': RandomUsers.angela['id'],
-            'name': 'No Name',
-            'email': 'lkajflajsdf@gmail.com',
-            'picture_url': 'alksdjflkasjlfjasl;dfjlksad;jfl;as.com',
-            'friends': RandomStuff.not_friends_with_angela
-        }
-        delta_dump = json.dumps(angela_new)
-        angela_new['friends'].extend(RandomUsers.angela['friends'])
-        rv = self.app.post('/update_user', data = dict(data=delta_dump))
-        user = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
-        self.assert_is_same_user(user, angela_new)
-
-        print "\n-------- end single test --------\n"
- 
-    def test_delete_friendship(self):
-        print "\n ------ begin test delete friendship ---- \n"
-
-        ## add george and zdravko (and their friends)
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        angela_dump = json.dumps(RandomUsers.angela)
-        self.app.post('/add_user', data = dict(data=angela_dump))
- 
-        ## delete a friendship
-        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert len(angela.friends) == 4  # hardcoded
-        assert len(george.friends) == 4  # hardcoded
-        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
-        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert len(angela.friends) == 3  # hardcoded
-        assert len(george.friends) == 3  # hardcoded
-        ## make sure deleting an emtpy friendship doesn't change anything
-        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
-        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert len(angela.friends) == 3  # hardcoded
-        assert len(george.friends) == 3  # hardcoded
- 
-        print "\n ----- end test delete friendship ------\n"
-
-
-    def test_add_delete_quote(self):
-        print "\n ------ begin test add delete quote ------\n"
-
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-
-        ## insert a single quote
-        assert len(Quote.query.all()) == 0
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-        assert len(Quote.query.all()) == 1
-
-        ## make sure it's there and it's the correct one
-        quote = Quote.query.all()[0]
-        self.assert_is_same_quote(quote, RandomQuotes.contemporary_art)
-
-        ## now delete it and make sure it's gone
-        rv = self.app.delete('/delete_quote/' + str(quote.id))
-        assert len(Quote.query.all()) == 0
-
-        print "\n ------ end test add delete quote ------\n"
-
-
-    def test_add_delete_comment(self):
-        print "\n ---- begin test single comment ----- \n"
-
-        ## add user and quote
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-
-        ## add comment and make sure it's correct in the database
-        assert len(Comment.query.all()) == 0
-        comment_dump = json.dumps(RandomComments.thissucks)
-        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
-        assert len(Comment.query.all()) == 1
-
-        comment = Comment.query.all()[0]
-        self.assert_is_same_comment(comment, RandomComments.thissucks)
-
-        ## delete comment
-        rv = self.app.delete('/delete_comment/' + str(comment.id))
-        assert len(Comment.query.all()) == 0
-
-        print "\n ----- end test single comment ---- \n"
-
-    def test_add_delete_echo(self):
-        print "\n---------- begin test add/delete echo -----\n"
-
-        ## add user and quote
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-        ## and fetch the quote and the user that will echo it
-        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
-        quote = Quote.query.all()[0]
-
-        ## add echo 
-        assert len(quote.echoers) == 0
-        assert len(user.echoes) == 0
-        echo = {'quoteId' : quote.id, 'userFbid' : RandomUsers.deepika['id']}
-        echo_dump = json.dumps(echo)
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        
-        ## make sure it's there
-        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
-        quote = Quote.query.all()[0]
-        assert len(quote.echoers) == 1
-        assert len(user.echoes) == 1
-        assert quote.echoers[0].id == user.id
-        assert user.echoes[0].id == quote.id
-
-        ## add same echo, make sure it's not duplicated
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
-        quote = Quote.query.all()[0]
-        assert len(quote.echoers) == 1
-        assert len(user.echoes) == 1
-
-        ## remove echo and make sure it's gone
-        rv = self.app.delete('/delete_echo/' + str(quote.id) + '/' + str(RandomUsers.deepika['id']))
-        user = User.query.filter_by(fbid = RandomUsers.deepika['id']).first() # must fetch them again
-        quote = Quote.query.all()[0]
-        assert len(quote.echoers) == 0
-        assert len(user.echoes) == 0
-
-        print "\n-------- end test add/delete echo ---------\n"
-
-    def test_add_delete_fav(self):
-        print "\n----- begin test add fav -----\n"
-
-        ## add user and 2 quotes
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data = george_dump))
-
-        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data = contemporary_art))
-       
-        girlfriend = json.dumps(RandomQuotes.girlfriend)
-        rv = self.app.post('/add_quote', data = dict(data = girlfriend))
-
-        ## simulate a favorite being added and verify
-        assert len(Favorite.query.all()) == 0
-        ironicfav = json.dumps(RandomFavorites.ironicfav)
-        rv = self.app.post('/add_fav', data = dict(data = ironicfav))
-        assert len(Favorite.query.all()) == 1
-
-        ## make sure if george favorites this quote again, nothin' happens
-        rv = self.app.post('/add_fav', data = dict(data = ironicfav))
-        assert len(Favorite.query.all()) == 1 ## shouldn't change
-
-        ## george favorites a different quote and shit happens!
-        coolquotedude = json.dumps(RandomFavorites.coolquotedude)
-        rv = self.app.post('/add_fav', data = dict(data = coolquotedude))
-        assert len(Favorite.query.all()) == 2
-
-        ## then let's make sure our favorite is the same as the test data
-        quoteId = 1
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        georgeId = george.id
-        favorite = Favorite.query.filter_by(quote_id = quoteId).first()
-        assert favorite
-        self.assert_is_same_fav(favorite, RandomFavorites.coolquotedude)
-
-        ## now let's delete it and make sure it goes away
-        rv = self.app.delete('/delete_fav/' + str(quoteId) + '/' + str(george.fbid))
-        assert len(Favorite.query.all()) == 1 
-        assert len(User.query.all()) == 5 # due to george's friends!
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()        
-        assert len(george.favs) == 1
-        assert len(Favorite.query.all()) == 1
-
-        ## make sure the correct one is deleted
-        favorite = Favorite.query.filter_by(quote_id = quoteId).first()
-        assert not favorite
-        assert len(Quote.query.filter_by(id = quoteId).first().favs) == 0
-
-        ## now we'll delete the other
-        quoteId = 2
-        rv = self.app.delete('/delete_fav/' + str(quoteId) + '/' + str(george.fbid))    
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()                     
-        assert len(george.favs) == 0
-        assert len(Favorite.query.all()) == 0      
-
-        print "\n ----- end test add fav ---- \n"
-
-    def test_get_quote(self):
-        print "\n-------- begin test get quote ---\n"
-
-        ## add users, quote, a bunch of comments, and echoes
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and echoes
-        self.app.post('/add_user', data = dict(data=zdravko_dump))
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-
-        ## make sure the correct quote is returned before adding comments and echoes
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
+        return True
+
+    def delete_quote(self, quote_id, user_fbid):
+        token = self.get_token_for_user_with_fbid(user_fbid)
+        self.app.delete('/delete_quote/%s?token=%s' % (quote_id, token))
+
+    def get_quote(self, echo_id, user_fbid):
+        token = self.get_token_for_user_with_fbid(user_fbid)
+        rv = self.app.get('/get_quote?order_id=%s&token=%s' % (echo_id, token))
         rv = json.loads(rv.data)
-        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
-        assert len(rv['comments']) == 0
-        assert rv['echo_count'] == 0
-        assert rv['fav_count'] == 0
-
-        ## now add some comments
-        comment_dump = json.dumps(RandomComments.thissucks)
-        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
-        comment_dump = json.dumps(RandomComments.funnyquote)
-        time.sleep(1) # b/c we order by created, we need to have different create times
-        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
-        comment_dump = json.dumps(RandomComments.angelayousuck) # this comment is not by a friend of george, so additional info must be returned for him by get_quote
-        time.sleep(1) # b/c we order by created, we need to have different create times
-        rv = self.app.post('/add_comment', data = dict(data=comment_dump))
-
-        ## add some favorites now
-        fav_dump = json.dumps(RandomFavorites.coolquotedude)
-        rv = self.app.post('/add_fav', data = dict(data=fav_dump))
-        fav_dump = json.dumps(RandomFavorites.anotherfav)
-        rv = self.app.post('/add_fav', data = dict(data=fav_dump))
-
-        ## make sure the correct quote is returned again
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
-        rv = json.loads(rv.data)
-        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
-
-        ## also make sure it has the correct comments in the correct order
-        assert rv['comments']
-        assert len(rv['comments']) == 3
-        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.thissucks, True)
-        self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.funnyquote, True)
-        self.assert_is_same_comment_jsononly(rv['comments'][2], RandomComments.angelayousuck, False)
-
-        ## remove some comments
-        ## remove middle comment
-        comm1id = rv['comments'][0]['id']
-        comm2id = rv['comments'][1]['id']
-        comm3id = rv['comments'][2]['id']
-        rv = self.app.delete('/delete_comment/' + str(comm2id))
-        ## make sure it's gone from the quote 
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
-        rv = json.loads(rv.data)
-        assert len(rv['comments']) == 2
-        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.thissucks, True)
-        self.assert_is_same_comment_jsononly(rv['comments'][1], RandomComments.angelayousuck, False)
-        ## remove oldest comment
-        rv = self.app.delete('/delete_comment/' + str(comm1id))
-        ## make sure it's gone from the quote 
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
-        rv = json.loads(rv.data)
-        assert len(rv['comments']) == 1
-        self.assert_is_same_comment_jsononly(rv['comments'][0], RandomComments.angelayousuck, False)
-
-        ## now add some echoes
-        echo = {'quoteId' : 1, 'userFbid' : RandomUsers.deepika['id']}
-        echo_dump = json.dumps(echo)
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        echo = {'quoteId' : 1, 'userFbid' : RandomUsers.zdravko['id']}
-        echo_dump = json.dumps(echo)
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        ## get quote and make sure echo count is right
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id'])
-        rv = json.loads(rv.data)
-        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art)
-        assert rv['echo_count'] == 2
-        ## remove echoes
-        rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.deepika['id'])) # remove deepika's echo
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
-        rv = json.loads(rv.data)
-        assert rv['echo_count'] == 1   # verify count
-        rv = self.app.delete('/delete_echo/1/' + str(RandomUsers.zdravko['id'])) # remove zdravko's echo
-        rv = self.app.get('/get_quote?id=1&userFbid=' + RandomUsers.george['id']) # get quote
-        rv = json.loads(rv.data)
-        assert rv['echo_count'] == 0   # verify
-        self.assert_is_same_quote_jsononly(rv, RandomQuotes.contemporary_art) # make sure quote hasn't changed
-        assert rv['fav_count'] == 2 # make sure fav_count is correct
-
-        print "\n------- end test get quote ---- \n"
-
-
-    def test_get_quotes_with_ids(self):
-        print "\n ------ start test  get quotes with ids -----\n"
-
-        ## insert users (note this is copy pasted from test_get_quotes)
-        assert len(User.query.all()) == 0
-        george_dump = json.dumps(RandomUsers.george)
-        deepika_dump = json.dumps(RandomUsers.deepika)
-        angela_dump = json.dumps(RandomUsers.angela)
-        zdravko_dump = json.dumps(RandomUsers.zdravko)
-        rv = self.app.post('/add_user', data = dict(data=george_dump))
-        rv = self.app.post('/add_user', data = dict(data=deepika_dump))
-        rv = self.app.post('/add_user', data = dict(data=angela_dump))
-        rv = self.app.post('/add_user', data = dict(data=zdravko_dump))
-        assert len(User.query.all()) == 7 # hardcoded for clarity and extra security
-        assert len(User.query.filter(User.registered == True).all()) == 4
-
-        ## insert quote by george (reporter) and angela (source)
-        assert len(Quote.query.all()) == 0
-        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=contemporary_art))
-        ## insert quote by angela (reporter) and george (source)
-        girlfriend = json.dumps(RandomQuotes.girlfriend)
-        time.sleep(1) # so the created field is different
-        rv = self.app.post('/add_quote', data = dict(data=girlfriend))
-        ## insert quote by angela (reporter) and cameron (source)
-        anotherquote = json.dumps(RandomQuotes.anotherquote)
-        time.sleep(1)
-        rv = self.app.post('/add_quote', data = dict(data=anotherquote))
-        ## insert quote by deepika (reporter) and george (source)
-        andanotherone = json.dumps(RandomQuotes.andanotherone)
-        time.sleep(1)
-        rv = self.app.post('/add_quote', data = dict(data=andanotherone))
-
-        ## try to get some quotes
-        ids_dump = json.dumps([1, 2, 4])
-        rv = self.app.post('/get_quotes_with_ids', data = dict(data=ids_dump))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone], False)
-
-        ## try with invalid ids and duplicates
-        ids_dump = json.dumps([1, 10, 2, 4, 39, 30, 1])
-        rv = self.app.post('/get_quotes_with_ids', data = dict(data=ids_dump))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, None, RandomQuotes.girlfriend, RandomQuotes.andanotherone, None, None, RandomQuotes.contemporary_art], False)
-
-        print "\n ------ end test get quotes with ids ----\n"
-
-
-    def test_get_quotes(self):
-        print "\n------- begin get quotes ------\n"
-
-        ## insert users
-        assert len(User.query.all()) == 0
-        george_dump = json.dumps(RandomUsers.george)
-        deepika_dump = json.dumps(RandomUsers.deepika)
-        angela_dump = json.dumps(RandomUsers.angela)
-        zdravko_dump = json.dumps(RandomUsers.zdravko)
-        rv = self.app.post('/add_user', data = dict(data=george_dump))
-        rv = self.app.post('/add_user', data = dict(data=deepika_dump))
-        rv = self.app.post('/add_user', data = dict(data=angela_dump))
-        rv = self.app.post('/add_user', data = dict(data=zdravko_dump))
-        assert len(User.query.all()) == 7 # hardcoded for clarity and extra security
-        assert len(User.query.filter(User.registered == True).all()) == 4
-
-        ## make sure users are ok
-        angela = User.query.filter_by(fbid = RandomUsers.angela['id']).first()
-        self.assert_is_same_user(angela, RandomUsers.angela)
-        assert angela.registered
-        deepika = User.query.filter_by(fbid = RandomUsers.deepika['id']).first()
-        self.assert_is_same_user(deepika, RandomUsers.deepika)
-        assert deepika.registered
-        george = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        self.assert_is_same_user(george, RandomUsers.george)
-        assert george.registered
-        zdravko = User.query.filter_by(fbid = RandomUsers.zdravko['id']).first()
-        self.assert_is_same_user(zdravko, RandomUsers.zdravko)
-        assert zdravko.registered
-
-        ## insert quote by george (reporter) and angela (source)
-        assert len(Quote.query.all()) == 0
-        contemporary_art = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=contemporary_art))
-
-        ## make sure zdravko <---> angela <----> george <---> deepika can see it 
-        ## here the <--->'s mark friendships
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 1
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 1
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 1
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 1
-
-        ## insert quote by angela (reporter) and george (source)
-        girlfriend = json.dumps(RandomQuotes.girlfriend)
-        time.sleep(1) # so the created field is different
-        rv = self.app.post('/add_quote', data = dict(data=girlfriend))
-        ## insert quote by angela (reporter) and cameron (source)
-        anotherquote = json.dumps(RandomQuotes.anotherquote)
-        time.sleep(1)
-        rv = self.app.post('/add_quote', data = dict(data=anotherquote))
-        ## insert quote by deepika (reporter) and george (source)
-        andanotherone = json.dumps(RandomQuotes.andanotherone)
-        time.sleep(1)
-        rv = self.app.post('/add_quote', data = dict(data=andanotherone))
-
-        ## make sure everyone sees what they must
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
-        ## make sure the me page is working
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 0
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
-
-        ## test oldest and latest
-        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
-        girlfriend_id = quote.id
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&latest=' + str(int(girlfriend_id)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&oldest=' + str(int(girlfriend_id)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
-
-        quote = Quote.query.filter_by(content=RandomQuotes.anotherquote['quote']).first()
-        anotherquote_id = quote.id
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&oldest=' + str(int(girlfriend_id)) + '&latest=' + str(int(anotherquote_id)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.girlfriend, RandomQuotes.anotherquote])
-
-       ## test lastest/oldest with me page 
-        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(quote.id)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(quote.id)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art])
-
-        ## test latest/oldest with me page and extreme cases
-        quote = Quote.query.filter_by(content=RandomQuotes.contemporary_art['quote']).first()
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(quote.id - 100)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(quote.id - 100)))
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 0
-
-        quote = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first()
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&latest=' + str(int(quote.id + 100)))
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 0
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me&oldest=' + str(int(quote.id + 100)))
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
-        ## test limit
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&limit=2')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        ## test limit with me page
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me&limit=2')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.girlfriend, RandomQuotes.anotherquote])
-
-        ## test limit with latest/oldest
-        quote = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first()
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&latest=' + str(int(quote.id)) + '&limit=1')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.andanotherone])
-
-        ## relies on the fact that they're 1 id apart 
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&oldest=' + str(int(quote.id + 1)) + '&limit=1')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.girlfriend])
- 
-        ## test limit extreme cases
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&limit=10')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'] + '&limit=0')
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 0
-
-        ## test two echoes on a single quote, then remove them 
-
-        ## add the first echo and see if zdravko sees it
-        andanotherone = Quote.query.filter_by(content=RandomQuotes.andanotherone['quote']).first() # quote by george and deepika
-        andanotheroneId = str(andanotherone.id)
-        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.angela['id']} # angela echoes it
-        echo_dump = json.dumps(echo)
-        time.sleep(1) # so the echo has a different timestamp
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
-        rv_list = json.loads(rv.data)
-        expected_echoed_quote = RandomQuotes.andanotherone.copy() # the echoed quote has reporterFbd = the echoer, not the original reporter
-        expected_echoed_quote['reporterFbid'] = RandomUsers.angela['id']
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, expected_echoed_quote])
-        self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 1])
-        ## check if is_echo field for single get_quote also works (probs not the right place for this but whatevs...we're not testing echoes anywhere else at this point) 
-        rv = self.app.get('/get_quote?id=' + andanotheroneId + '&userFbid=' + RandomUsers.zdravko['id'])
-        rv = json.loads(rv.data)
-        assert rv['is_echo'] == 1
-        assert rv['reporterFbid'] == expected_echoed_quote['reporterFbid']
-
-        ## add second echo and see if there is no duplication
-        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.deepika['id']} # deepika also echoes it (although she's the reporter so nothing should change) 
-        echo_dump = json.dumps(echo)
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id']) # and nothing should change for george i.e. he shouldn't see the same quote twice
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-        self.assert_is_same_list_of_is_echoed(rv_list, [0, 0, 0, 0])
-
-        ## remove angela's echo and make sure zdravko can't see it anymore
-        rv = self.app.delete('/delete_echo/' + andanotheroneId + '/' + str(RandomUsers.angela['id']))
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.girlfriend, RandomQuotes.anotherquote])
-
-        ## TODO perhaps create a more intricate test case for echoing although this should be good for now 
-
-        ## test deleting quotes and how the feed and the me pages change
-
-        ## delete one quote
-        girlfriend = Quote.query.filter_by(content=RandomQuotes.girlfriend['quote']).first() # quote by george and deepika
-        girlfriendId = str(girlfriend.id)
-        rv = self.app.delete('/delete_quote/' + girlfriendId)
-
-        ## make sure it's gone from everyone's feed (note this is copy-paste from above -- refactor somehow, too much code duping)
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, RandomQuotes.andanotherone])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.deepika['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.andanotherone])
-
-        ## make sure it's gone from the me pages too
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
-
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'] + '&type=me')
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.andanotherone])
-
-        ## add the same echo as up there but then delete the quote to make sure it disappears from zdravko's feed 
-
-        echo = {'quoteId' : andanotheroneId, 'userFbid' : RandomUsers.angela['id']} # angela echoes george's quote
-        echo_dump = json.dumps(echo)
-        rv = self.app.post('/add_echo', data = dict(data=echo_dump))
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
-        rv_list = json.loads(rv.data)
-        expected_echoed_quote = RandomQuotes.andanotherone.copy() # the echoed quote has reporterFbd = the echoer, not the original reporter
-        expected_echoed_quote['reporterFbid'] = RandomUsers.angela['id']
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote, expected_echoed_quote])
-        ## now delete it and make sure zdravko can't see it
-        rv = self.app.delete('/delete_quote/' + andanotheroneId)
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.zdravko['id']) # and zdravko must see it, although he couldn't see it before
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
-
-        ## now delete george and angela's friendship and make sure they can't see each other's quotes
-        rv = self.app.delete('/delete_friendship/' + str(RandomUsers.george['id']) + '/' + str(RandomUsers.angela['id']))
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.george['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art]) 
-        rv = self.app.get('/get_quotes?fbid=' + RandomUsers.angela['id'])
-        rv_list = json.loads(rv.data)
-        self.assert_is_same_list_of_quotes(rv_list, [RandomQuotes.contemporary_art, RandomQuotes.anotherquote])
-
-
-
-        print "\n -------end test get quotes --------\n"
-
-
-
-
-    def test_get_echoers(self):
-        print "\n------- begin get echoers ------\n"
-
-        ## add users, quote, a bunch of echoes 
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and echoes
-        self.app.post('/add_user', data = dict(data=zdravko_dump))
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-        quote = Quote.query.all()[0]
-        quoteId = quote.id
-
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']}
-        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']}
-        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.zdravko['id']} # should be able to echo too
-        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
-        echo = {'quoteId' : quoteId, 'userFbid' : RandomUsers.george['id']} # should be able to echo too
-        rv = self.app.post('/add_echo', data = dict(data=json.dumps(echo)))
-
-        rv = self.app.get('/get_echoers?quoteId=' + str(quoteId))
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 4
-        # TODO create a assert_is_same_list or whatevs once we agree on the API specifics and test for the other attributes too
-        # right now just makes sure that the fbids are the same, but not names, or whatever else we return
-        assert rv_list[0]['fbid'] == RandomUsers.deepika['id']
-        assert rv_list[1]['fbid'] == RandomUsers.angela['id']
-        assert rv_list[2]['fbid'] == RandomUsers.zdravko['id']
-        assert rv_list[3]['fbid'] == RandomUsers.george['id']
-
-
-
-    def test_get_favs(self):
-        # literally the same as test_get_echoers
-        print "\n------- begin get favs ------\n"
-
-        ## add users, quote, a bunch of favs 
-        george_dump = json.dumps(RandomUsers.george)
-        self.app.post('/add_user', data = dict(data=george_dump))
-        zdravko_dump = json.dumps(RandomUsers.zdravko) # b/c he's not a friend of george's so he's not added but he comments and favorites
-        self.app.post('/add_user', data = dict(data=zdravko_dump))
-        quote_dump = json.dumps(RandomQuotes.contemporary_art)
-        rv = self.app.post('/add_quote', data = dict(data=quote_dump))
-        quote = Quote.query.all()[0]
-        quoteId = quote.id
-
-        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.deepika['id']}
-        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
-        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.angela['id']}
-        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
-        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.zdravko['id']} # should be able to fav too
-        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
-        fav = {'quoteId' : quoteId, 'userFbid' : RandomUsers.george['id']} # should be able to fav too
-        rv = self.app.post('/add_fav', data = dict(data=json.dumps(fav)))
-
-        rv = self.app.get('/get_favs?quoteId=' + str(quoteId))
-        rv_list = json.loads(rv.data)
-        assert len(rv_list) == 4
-        # TODO create a assert_is_same_list or whatevs once we agree on the API specifics and test for the other attributes too
-        # right now just makes sure that the fbids are the same, but not names, or whatever else we return
-        assert rv_list[0]['fbid'] == RandomUsers.deepika['id']
-        assert rv_list[1]['fbid'] == RandomUsers.angela['id']
-        assert rv_list[2]['fbid'] == RandomUsers.zdravko['id']
-        assert rv_list[3]['fbid'] == RandomUsers.george['id']
-
-    def test_register_token(self):
-        george_dump = json.dumps(RandomUsers.george)
-        rv = self.app.post('/add_user', data = dict(data=george_dump))
-        hex_token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        token = {'fbid' : RandomUsers.george['id'], 'token' : hex_token}
-        rv = self.app.post('/register_token', data = dict(data=json.dumps(token)))
-
-        user = User.query.filter_by(fbid = RandomUsers.george['id']).first()
-        assert user.fbid == RandomUsers.george['id']
-        assert user.device_token == hex_token # check whether it was stored in the db
-
-        # TODO: more comprehensive testing
+        return rv
 
+
+class TestQuoteAPI(TestBase, QuoteAPIHelpers, MockUserData, MockQuoteData):
+
+    def setUp(self):
+        TestBase.setUp(self)
+        self.add_user(self.user_simple)
+        self.add_user(self.user_with_friends)
+        self.add_user(self.user_unicode_simple)
+
+    # ------------- helpers -------------
+
+    # check if the db entry quote = add_quote(quote_dict) is consistent with quote_dict
+    def assert_is_same_quote_simple(self, quote, quote_dict, deleted = False):
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote.deleted, deleted)
+        self.assertEqual(quote.content, quote_dict['quote'].decode('utf8'))
+
+        source = User.query.filter_by(fbid = quote_dict['sourceFbid']).first()
+        self.assertIsNotNone(source)
+        self.assertEqual(quote.source_id, source.id)
+
+        reporter = User.query.filter_by(fbid = quote_dict['reporterFbid']).first()
+        self.assertIsNotNone(reporter)
+        self.assertEqual(quote.reporter_id, reporter.id)
+
+        if 'location' in quote_dict:
+            self.assertEqual(quote.location, quote_dict['location'])
+        if 'location_lat' in quote_dict:
+            self.assertEqual(quote.location_lat, quote_dict['location_lat'])
+        if 'location_long' in quote_dict:
+            self.assertEqual(quote.location_long, quote_dict['location_long'])
+
+    # check if quote_res = get_quote(...) is consistent with db entry quote
+    # note this only works with original quotes, not with echoes
+    def assert_is_consistent_quote_res(self, quote_res, user_fbid):
+        quote = Quote.query.filter_by(id=quote_res['_id']).first()
+        self.assertIsNotNone(quote)
+        self.assertFalse(quote.deleted)
+
+        self.assertEqual(quote.content, quote_res['quote'])
+        self.assertEqual(quote.location, quote_res['location'])
+        self.assertEqual(quote.location_lat, quote_res['location_lat'])
+        self.assertEqual(quote.location_long, quote_res['location_long'])
+
+        self.assertIsNotNone(quote.source)
+        self.assertEqual(quote.source.fbid, quote_res['sourceFbid'])
+        self.assertEqual(quote.source.first_name + " " + quote.source.last_name, quote_res['source_name'])
+        self.assertEqual(quote.source.picture_url, quote_res['source_picture_url'])
+
+        self.assertIsNotNone(quote.reporter)
+        self.assertEqual(quote.reporter.fbid, quote_res['reporterFbid'])
+        self.assertEqual(quote.reporter.first_name + " " + quote.reporter.last_name, quote_res['reporter_name'])
+        self.assertEqual(quote.reporter.picture_url, quote_res['reporter_picture_url'])
+
+        self.assertIn('timestamp', quote_res)
+        self.assertEqual(len(quote.echoers) - 1, quote_res['echo_count'])
+        self.assertEqual(len(quote.favs), quote_res['fav_count'])
+
+        user = User.query.filter_by(fbid=user_fbid).first()
+        self.assertEqual(Favorite.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0, quote_res['user_did_fav'])
+        self.assertEqual(user.id != quote.reporter_id and Echo.query.filter_by(quote_id=quote.id, user_id=user.id).count() > 0, quote_res['user_did_echo'])
+
+        self.assertFalse(quote_res['is_echo'])
+        echo = Echo.query.filter(Echo.quote_id==quote.id, Echo.user_id==quote.reporter_id).first()
+        self.assertIsNotNone(echo)
+        self.assertEqual(echo.id, quote_res['order_id'])
+
+
+    # ------------- tests -------------
+
+    def _test_add_quote(self):
+        self.add_quote(self.quote_minimal)
+        self.assertEqual(Quote.query.count(), 1) # quote added
+
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_minimal) # quote is fine
+
+        self.add_quote(self.quote_normal)
+        self.assertEqual(Quote.query.count(), 2) # quote added
+
+        quote = Quote.query.all()[1]
+        self.assert_is_same_quote_simple(quote, self.quote_normal) # quote is fine
+
+    def test_add_quote_unicode(self):
+        self.add_quote(self.quote_unicode)
+        self.assertEqual(Quote.query.count(), 1) # quote added
+
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_unicode) # quote is fine
+
+    def _test_add_quote_invalid(self):
+        self.add_quote(self.quote_invalid_source)
+        self.assertEqual(Quote.query.count(), 0) # invalid source
+
+        self.add_quote(self.quote_invalid_reporter, self.user_simple['id'])
+        self.assertEqual(Quote.query.count(), 0) # invalid reporter
+
+        self.add_quote(self.quote_same_source_reporter)
+        self.assertEqual(Quote.query.count(), 0) # source = reporter        
+
+    def _test_delete_quote(self):
+        self.add_quote(self.quote_minimal)
+        self.delete_quote("1", self.quote_minimal['reporterFbid'])
+        self.assertEqual(Quote.query.count(), 1) # do not remove from db
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_minimal, True) # deleted by reporter
+
+        self.add_quote(self.quote_minimal)
+        self.delete_quote("2", self.quote_minimal['sourceFbid'])
+        quote = Quote.query.all()[1]
+        self.assert_is_same_quote_simple(quote, self.quote_minimal, True) # deleted by source
+
+    def _test_delete_quote_invalid(self):
+        self.add_quote(self.quote_minimal)
+
+        self.delete_quote("1", "100000000000000001")
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_minimal) # not deleted -- invalid user
+
+        self.delete_quote("1", self.user_unicode_simple['id'])
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_minimal) # not deleted -- user is not reporter nor source
+
+        self.delete_quote("2", self.quote_minimal['reporterFbid'])
+        quote = Quote.query.first()
+        self.assert_is_same_quote_simple(quote, self.quote_minimal) # not deleted -- wrong quote id
+
+    def _test_get_quote_simple(self):
+        self.assertTrue(self.add_quote_to_db(self.quote_minimal))
+        quote_res = self.get_quote("1", self.user_simple['id'])
+        self.assert_is_consistent_quote_res(quote_res, self.user_simple['id'])
 
 if __name__ == '__main__':
     unittest.main()

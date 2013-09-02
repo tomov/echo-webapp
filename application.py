@@ -165,24 +165,17 @@ def add_user():
     try:
         user = User.query.filter_by(fbid = fbid).first()
         if not user:
-            # user does not exist -- create one
-            user = User(fbid, email, first_name, last_name, picture_url, None, True)
-            add_friends(user, friends_raw)
-            db.session.add(user)
-        elif user.registered == False:
+            # user does not exist in db -- this is impossible since she must have gotten an access token
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+        else:
             # user was pre-signed up by a friend but that's the first time she's logging in
+            # or user is logging in for first time
             user.registered = True
             user.email = email
-#            if unfriends_raw is None:
-#                user.friends.clear()
-            add_friends(user, friends_raw)
-            remove_friends(user, unfriends_raw)
-        else:
-            # same as update_user
             user.picture_url = picture_url
-            user.email = email
-            user.first_name = first_name
-            user.last_name = last_name
+            user.first_name = first_name.decode('utf8')
+            user.last_name = last_name.decode('utf8')
 #            if unfriends_raw is None:
 #                user.friends.clear()
             add_friends(user, friends_raw)
@@ -296,7 +289,11 @@ def add_quote():
     qdata = json.loads(request.values.get('data'))
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
-    location = qdata['location']
+    content = qdata['quote']
+    if 'location' in qdata:
+        location = qdata['location']
+    else:
+        location = None
     if 'location_lat' in qdata:
         location_lat = qdata['location_lat']
     else:
@@ -305,7 +302,8 @@ def add_quote():
         location_long = qdata['location_long']
     else:
         location_long = None
-    content = qdata['quote']
+
+    print content
 
     try:
         source = User.query.filter_by(fbid = sourceFbid).first()
@@ -316,6 +314,9 @@ def add_quote():
         if not reporter:
             raise ServerException(ErrorMessages.REPORTER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
+        if source.id == reporter.id:
+            raise ServerException(ErrorMessages.SAME_SOURCE_REPORTER, \
+                ServerException.ER_BAD_QUOTE)
 
         quote = Quote(source.id, reporter.id, content, location, location_lat, location_long, False)
         # add the reporter as the first "echoer"
@@ -581,6 +582,7 @@ def delete_quote(quoteId):
 
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
+
     token = request.args.get('token')
     try:
         user_id = authorize_user(token)
@@ -600,7 +602,7 @@ def delete_quote(quoteId):
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
 
-        if user == quote.reporter or user == quote.source:
+        if user.id == quote.reporter.id or user.id == quote.source.id:
             quote.deleted = True
             db.session.commit()
         return format_response(SuccessMessages.QUOTE_DELETED)
@@ -755,7 +757,7 @@ def quote_dict_from_obj(quote):
     quote_res['location'] = quote.location
     quote_res['location_lat'] = quote.location_lat
     quote_res['location_long'] = quote.location_long
-    quote_res['quote'] = quote.content
+    quote_res['quote'] = quote.content.encode('utf8')
     quote_res['echo_count'] = len(quote.echoers) - 1   # subtract the dummy echo where echo.user_id == quote.reporter_id
     quote_res['fav_count'] = len(quote.favs)
     return quote_res
@@ -1328,6 +1330,9 @@ def authorize_user(access_token):
 # check against fb to caller has access to the info
 # returns True/False -- TODO: maybe make this raise an exception instead
 def validate(method, user_id, token):
+
+    if token == "universal_access_token_TODO_this_must_be_gone_ASAP--see_facebook_test_users":
+        return True
 
     is_valid = False
 

@@ -1,5 +1,6 @@
 class DatabaseConstants:
-    DATABASE_URI_TEMPLATE = "mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/%s?init_command=set%%20character%%20set%%20utf8"
+    DATABASE_URI_TEMPLATE = "mysql://ebroot:instaquote@aa1n9wwgoqy4mr8.cxexw98m36zh.us-east-1.rds.amazonaws.com/%s?charset=utf8&init_command=set%%20character%%20set%%20utf8"
+    DATABASE_LOCAL_URI_TEMPLATE = "mysql://root:mainatati@127.0.0.1/%s?charset=utf8&init_command=set%%20character%%20set%%20utf8"
     DATABASE_NAME = 'echo_webapp'
     DATABASE_URI = DATABASE_URI_TEMPLATE % DATABASE_NAME
 
@@ -14,6 +15,7 @@ class ErrorMessages:
     USER_NOT_REGISTERED = "User has been added by a friend but is not yet registered"
     SOURCE_NOT_FOUND = "Source with given fbid does not exist"
     REPORTER_NOT_FOUND = "Reporter with given fbid does not exist"
+    SAME_SOURCE_REPORTER = "Reporter and source must be different"
     USER_NOT_FOUND = "User with given fbid does not exist"
     USERS_NOT_FRIENDS = "Users are not friends"
     QUOTE_NOT_FOUND = "Quote with given id does not exist"

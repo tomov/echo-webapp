@@ -40,7 +40,8 @@ class User(db.Model):
     echoes = association_proxy('users_echoes', 'quote')
     comments = db.relationship('Comment', backref = 'user', lazy = 'dynamic')
     feedback = db.relationship('Feedback', backref = 'user', lazy = 'dynamic')
-    friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)  # TODO (mom) make sure this works
+    # DON'T USE friends. Use all_friends instead
+    friends = db.relationship('User', secondary = friendship, primaryjoin=id==friendship.c.friend_a_id, secondaryjoin=id==friendship.c.friend_b_id)
     device_token = db.Column(db.String(length = 64))
 
     def __init__(self, fbid, email = None, first_name = None, last_name = None, picture_url = None, picture = None, registered = False):
