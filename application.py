@@ -826,7 +826,7 @@ def get_quote():
         return format_response(None, e);
 
 # TODO maybe deprecate get_quotes_with_ids? this is basically the same thing
-@app.route('/check_deleted_quotes', methods = ['post', 'get'])
+@app.route('/check_deleted_quotes', methods = ['post'])
 def check_deleted_quotes():
 
     # !AUTH -- TODO: put in method -- decorator
