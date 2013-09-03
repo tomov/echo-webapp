@@ -303,8 +303,6 @@ def add_quote():
     else:
         location_long = None
 
-    print content
-
     try:
         source = User.query.filter_by(fbid = sourceFbid).first()
         reporter = User.query.filter_by(fbid = reporterFbid).first()
@@ -399,7 +397,7 @@ def add_echo():
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
 
-        if user not in quote.echoers and user != quote.reporter and user != quote.source:
+        if user not in quote.echoers and user.id != quote.reporter.id and user.id != quote.source.id:
             quote.echoers.append(user)
             add_notification(user, quote, 'echo', quote.reporter_id)
             add_notification(user, quote, 'echo', quote.source_id)
@@ -558,6 +556,10 @@ def set_notifprefs():
             raise ServerException(ErrorMessages.USER_NOT_FOUND, \
                 ServerException.ER_BAD_USER)
 
+        if not user.notifprefs:
+            user.notifprefs = NotifPrefs()
+            db.session.commit()
+
         if quotes is not None:
             user.notifprefs.quotes = quotes
         if echoes is not None:
@@ -634,7 +636,7 @@ def delete_echo(quoteId):
             raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
                 ServerException.ER_BAD_QUOTE)
 
-        if user in quote.echoers and user != quote.reporter and user != quote.source:
+        if user in quote.echoers and user.id != quote.reporter.id and user.id != quote.source.id:
             quote.echoers.remove(user)
             db.session.commit()
         return format_response(SuccessMessages.ECHO_DELETED)
@@ -702,7 +704,7 @@ def delete_comment(commentId):
 
 
 @app.route("/delete_fav/<quoteId>", methods = ['DELETE'])
-def remove_fav(quoteId):
+def delete_fav(quoteId):
 
     # !AUTH -- TODO: put in method -- decorator
     #----------------------------------
@@ -757,7 +759,7 @@ def quote_dict_from_obj(quote):
     quote_res['location'] = quote.location
     quote_res['location_lat'] = quote.location_lat
     quote_res['location_long'] = quote.location_long
-    quote_res['quote'] = quote.content.encode('utf8')
+    quote_res['quote'] = quote.content
     quote_res['echo_count'] = len(quote.echoers) - 1   # subtract the dummy echo where echo.user_id == quote.reporter_id
     quote_res['fav_count'] = len(quote.favs)
     return quote_res
@@ -824,7 +826,7 @@ def get_quote():
         return format_response(None, e);
 
 # TODO maybe deprecate get_quotes_with_ids? this is basically the same thing
-@app.route('/check_deleted_quotes', methods = ['post'])
+@app.route('/check_deleted_quotes', methods = ['post', 'get'])
 def check_deleted_quotes():
 
     # !AUTH -- TODO: put in method -- decorator
@@ -1147,12 +1149,12 @@ def get_notifications():
                 ServerException.ER_BAD_USER)
 
         if not limit:
-            if not unread_only:
+            if unread_only != '1':
                 notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id)).order_by(desc(Notification.id)).all()
             else:
                 notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id), Notification.unread).order_by(desc(Notification.id)).all()
         else:
-            if not unread_only:
+            if unread_only != '1':
                 notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id)).order_by(desc(Notification.id)).limit(limit).all()
             else:
                 notifications = Notification.query.filter(Notification.recipients.any(User.id == user.id), Notification.unread).order_by(desc(Notification.id)).limit(limit).all()
@@ -1161,7 +1163,7 @@ def get_notifications():
         for notification in notifications:
             notification_res = notification_dict_from_obj(notification)
             result.append(notification_res)
-            if clear:
+            if clear == '1':
                 notification.unread = False
 
         db.session.commit() # update unreads
