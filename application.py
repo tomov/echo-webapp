@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, render_template
 import json
 from sqlalchemy import or_, and_
 import time
@@ -1364,6 +1364,13 @@ def validate(method, user_id, token):
 
     return is_valid
 
+#---------------------------------------
+#  Facebook OG stuff
+#---------------------------------------
+
+@app.route('/og_repeater', methods=['get'])
+def open_graph_repeater():
+    return render_template('og.html', tags=request.args, url=request.url)
 
 #---------------------------------------
 #  shit
