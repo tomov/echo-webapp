@@ -24,7 +24,9 @@ class QuoteAPIHelpers(UserAPIHelpers):
         if user_fbid is None:
             user_fbid = quote_dict['reporterFbid']
         token = self.get_token_for_user_with_fbid(user_fbid)
-        self.app.post('/add_quote?token=%s' % token, data=dict(data=json.dumps(quote_dict)))
+        rv = self.app.post('/add_quote?token=%s' % token, data=dict(data=json.dumps(quote_dict)))
+        rv = json.loads(rv.data)
+        return rv
 
     def add_quote_to_db(self, quote_dict, deleted = False):
         source = User.query.filter_by(fbid=quote_dict['sourceFbid']).first()

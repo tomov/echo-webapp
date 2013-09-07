@@ -326,7 +326,9 @@ def add_quote():
 
         add_notification(reporter, quote, 'quote', source.id)
         db.session.commit()
-        return format_response(SuccessMessages.QUOTE_ADDED)
+
+        echo = Echo.query.filter_by(quote_id=quote.id).first()
+        return json.dumps({'echo_id': echo.id})
     except ServerException as e:
         return format_response(None, e)
 
@@ -1395,7 +1397,7 @@ def og_quote():
 
         tags = {
             'og:type': 'echoios:quote',
-            'og:title': quote.content,
+            'og:title': '"%s"' % quote.content,
             'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,
             'og:description': '%s %s' % (quote.source.first_name, quote.source.last_name)
         }

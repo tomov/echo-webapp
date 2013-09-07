@@ -107,7 +107,8 @@ class TestQuoteAPI(TestBase, QuoteAPIHelpers, MockUserData, MockQuoteData):
     # ------------- tests -------------
 
     def test_add_quote(self):
-        self.add_quote(self.quote_minimal)
+        rv = self.add_quote(self.quote_minimal)
+        # TODO test if response is {echo_id: 1}
         self.assertEqual(Quote.query.count(), 1) # quote added
 
         quote = Quote.query.first()
