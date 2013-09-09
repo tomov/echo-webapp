@@ -1399,7 +1399,7 @@ def og_quote():
             'og:type': 'echoios:quote',
             'og:title': '"%s"' % quote.content,
             'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,
-            'og:description': '- %s %s' % (quote.source.first_name, quote.source.last_name)
+            'og:description': u'\u2014 %s %s' % (quote.source.first_name, quote.source.last_name)
         }
         return render_template('og.html', tags=tags, url=request.url) 
     except ServerException as e:
