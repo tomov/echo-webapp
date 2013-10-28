@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import unittest
 from test_user_api import *
 from test_quote_api import *

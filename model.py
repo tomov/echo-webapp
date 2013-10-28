@@ -10,6 +10,8 @@ from sqlalchemy import UniqueConstraint
 
 db = SQLAlchemy()
 
+
+
 # copied from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
 friendship = db.Table(
     'friendships', 
@@ -22,6 +24,8 @@ notifications_recipients = db.Table(
     db.Column('notification_id', db.Integer, db.ForeignKey('notifications.id')), 
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'))
 )
+
+
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -57,7 +61,6 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r %r>' % (self.first_name, self.last_name)
 
-
 # this relationship is viewonly and selects across the union of all
 # friends
 # again, taken from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
@@ -75,6 +78,7 @@ User.all_friends = db.relationship('User',
                        primaryjoin=User.id==friendship_union.c.friend_a_id,
                        secondaryjoin=User.id==friendship_union.c.friend_b_id,
                        viewonly=True) 
+
 
 
 class Quote(db.Model):
@@ -108,6 +112,8 @@ class Quote(db.Model):
     def __repr__(self):
         return '<Quote %r>' % self.content
 
+
+
 class Echo(db.Model):
     __tablename__ = 'echoes'
     id = db.Column(db.Integer, primary_key = True)
@@ -128,6 +134,8 @@ class Echo(db.Model):
     def __repr__(self):
         return '<Echo [Quote %r] [User %r]>' % (self.quote.id, self.user.id)
 
+
+
 class Favorite(db.Model):
     __tablename__ = 'favorites'
     id = db.Column(db.Integer, primary_key = True)
@@ -145,6 +153,8 @@ class Favorite(db.Model):
 
     def __repr__(self):
         return '<Favorite [Quote %r] [User %r]>' % (self.quote.id, self.user.id)
+
+
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -165,6 +175,8 @@ class Comment(db.Model):
     def __repr__(self):
         return '<Comment %r>' % self.content
 
+
+
 class Feedback(db.Model):
     __tablename__ = 'feedback'
     id = db.Column(db.Integer, primary_key = True)
@@ -184,6 +196,8 @@ class Feedback(db.Model):
     def __repr__(self):
         return '<Feedback %r>' % self.content
 
+
+
 # for auth
 class Access_Token(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -196,6 +210,8 @@ class Access_Token(db.Model):
 
     def __repr__(self):
         return '[id: {2}; user_id: {0}; access_token: {1}]'.format(self.user_id, self.access_token, self.id)
+
+
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
@@ -224,6 +240,8 @@ class Notification(db.Model):
     def __repr__(self):
         return '<Notification %r>' % self.type
 
+
+
 class NotifPrefs(db.Model):
     __tablename__ = 'notifprefs'
     id = db.Column(db.Integer, primary_key = True)
@@ -245,6 +263,8 @@ class NotifPrefs(db.Model):
     def __repr__(self):
         return '<NotifPrefs %r>' % self.user_id
 
+
+
 class APIEvent(db.Model):
     __tablename__ = 'apievents'
     id = db.Column(db.Integer, primary_key = True)
@@ -264,6 +284,8 @@ class APIEvent(db.Model):
 
     def __repr__(self):
         return '<APIEvent %r by %s>' % (self.name, self.user_id)
+
+
 
 # call this somewhere in application.py/home, run and open home page
 # then check if db is created and then remove it
