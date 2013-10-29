@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask import request
+from flask import request, Blueprint
+from sqlalchemy import desc
 
-from application import app
-from model import db, Notification, NotifPrefs
+from model import db, User, Echo, Notification, NotifPrefs
+from auth import *
+from util import *
+from constants import *
 
+notif_api = Blueprint('notif_api', __name__)
 
 # note that we don't db.session.commit -- the caller must do that after
 def add_notification(user, quote, type, recipient_id):
@@ -92,20 +96,10 @@ def notification_dict_from_obj(notification):
     notification_res['formatted-text'] = notification_to_text(notification)
     return notification_res
 
-@app.route("/get_notifications", methods = ['get'])
-def get_notifications():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    user_id = 0
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "get_notifications")
-    #-----------------------------------
-
+@notif_api.route("/get_notifications", methods = ['get'])
+@authenticate
+@track
+def get_notifications(user_id):
     unread_only = request.args.get('unread_only')
     limit = request.args.get('limit')
     clear = request.args.get('clear')
@@ -141,19 +135,10 @@ def get_notifications():
         return format_response(None, e)
 
 
-@app.route("/get_notifprefs", methods = ['get'])
-def get_notifprefs():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "get_notifprefs")
-    #-----------------------------------
-
+@notif_api.route("/get_notifprefs", methods = ['get'])
+@authenticate
+@track
+def get_notifprefs(user_id):
     try:
         user = User.query.filter(User.id == user_id).first()
         if not user:
@@ -176,19 +161,10 @@ def get_notifprefs():
         return format_response(None, e)
 
 
-@app.route("/set_notifprefs", methods = ['post'])
-def set_notifprefs():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "set_notifprefs")
-    #-----------------------------------
-
+@notif_api.route("/set_notifprefs", methods = ['post'])
+@authenticate
+@track
+def set_notifprefs(user_id):
     data = json.loads(request.values.get('data'))
     quotes = data.get('quotes')
     echoes = data.get('echoes')
@@ -220,8 +196,7 @@ def set_notifprefs():
         return format_response(None, e)
 
 
-
-@app.route("/test_notif")
+@notif_api.route("/test_notif")
 def test_notif():
     # Send a notification
     #token_hex1 = '04c11da985c7e9a615ddc039ce654b76e096db088602e71f8bbfc9fb6d59a91e' # rishi's phone

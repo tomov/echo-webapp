@@ -7,6 +7,7 @@ from mock_data import *
 
 from model import Feedback
 
+
 class TestMiscAPI(TestBase, MiscAPIHelpers, MockUserData, MockQuoteData, MockCommentData):
 
     def setUp(self):

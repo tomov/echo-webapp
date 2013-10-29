@@ -1,25 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask import request
+from flask import request, Blueprint
 
-from application import app
-from model import db, Comment
+from model import db, User, Quote, Comment
+from auth import *
+from util import *
+from constants import *
+from notif_api import add_notification
 
+comment_api = Blueprint('comment_api', __name__)
 
-@app.route("/add_comment", methods = ['POST'])
-def add_comment():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "add_comment")
-    #-----------------------------------
-
+@comment_api.route("/add_comment", methods = ['POST'])
+@authenticate
+@track
+def add_comment(user_id):
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
     content = qdata['comment']
@@ -47,19 +42,10 @@ def add_comment():
         return format_response(None, e)
 
 
-@app.route("/delete_comment/<commentId>", methods = ['DELETE'])
-def delete_comment(commentId):
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "delete_comment")
-    #-----------------------------------
-
+@comment_api.route("/delete_comment/<commentId>", methods = ['DELETE'])
+@authenticate
+@track
+def delete_comment(commentId, user_id = None):
     try:
         comment = Comment.query.filter_by(id = commentId).first()
         if not comment:

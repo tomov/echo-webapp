@@ -1,33 +1,23 @@
 # -*- coding: utf-8 -*-
 
+from flask import request, Blueprint
 import json
-from flask import request
 
-from application import app
+# for auth
+import random
+import urllib
+import urllib2
+
 from model import db, User
+from util import *
+from auth import *
+from constants import *
+
+user_api = Blueprint('user_api', __name__)
 
 ## AUTH crap
 
-# Note: does not comply with OAuth2 specifications - for internal use only
-
-class AuthException(Exception):
-    TOKEN_EXPIRED       = 1
-    TOKEN_INVALID       = 2
-    NOT_AUTHORIZED      = 3
-    UNKNOWN_EXCEPTION   = 4 # so far: user 
-
-    def __init__(self, message, n=UNKNOWN_EXCEPTION):
-        self.message = message
-        self.n = n
-
-    # DON'T CHANGE THE AUTHEXCEPTION STRINGS
-    def to_dict(self):
-        return {'exception': 'AuthException', 'errno' : self.n, 'message' : self.message}
-
-    def __str__(self):
-        return "[%d] %s" % self.message
-
-@app.route('/get_token', methods = ['GET'])
+@user_api.route('/get_token', methods = ['GET'])
 def get_token():
     # three cases: success, oauth error, network failure
 
@@ -68,29 +58,6 @@ def get_token():
     dump = json.dumps(response)
     return format_response(response)
 
-# determines whether the caller has access to the resources
-def authorize_user(access_token):
-
-    try:
-        parsed_token = manager.parse_token(str(access_token))
-        user_id = parsed_token['user_id']
-    except ValueError as e:
-
-        # note: these checks are dependent on exceptions in tokenlib library
-        if "expired" in e.message:
-            raise AuthException("Token is expired.", AuthException.TOKEN_EXPIRED)
-        if "invalid" in e.message:
-            raise AuthException("Token is invalid.", AuthException.TOKEN_INVALID)
-
-        # safety
-        raise AuthException("Something is wrong with the token.", AuthException.UNKNOWN_EXCEPTION)
-    
-    tok = Access_Token.query.filter_by(user_id=parsed_token['user_id']).first()
-    if tok != None and int(tok.user_id) == int(user_id) and tok.access_token == access_token:
-        # TODO: make this uint or long (when we have billions of users...)
-        return int(user_id)
-
-    raise AuthException("Not authorized.", AuthException.NOT_AUTHORIZED)
 
 # check against fb to caller has access to the info
 # returns True/False -- TODO: maybe make this raise an exception instead
@@ -128,20 +95,10 @@ def validate(method, user_id, token):
     return is_valid
 
 
-@app.route("/register_token", methods = ['POST'])
-def register_token():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    user_id = 0
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "register_token")
-    #-----------------------------------
-
+@user_api.route("/register_token", methods = ['POST'])
+@authenticate
+@track
+def register_token(user_id):
     qdata = json.loads(request.values.get('data'))
     userDeviceToken = qdata['token']
 
@@ -170,19 +127,10 @@ def register_token():
 
 
 # also functions as update_user
-@app.route("/add_user", methods = ['POST'])
-def add_user():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "add_user")
-    #-----------------------------------
-
+@user_api.route("/add_user", methods = ['POST'])
+@authenticate
+@track
+def add_user(user_id):
     udata = json.loads(request.values.get('data'))
     fbid = udata['id']
     picture_url = udata['picture_url']
@@ -249,40 +197,3 @@ def remove_friends(user, unfriends_raw):
             user.friends.remove(friend)
         if user in friend.friends:
             friend.friends.remove(user)
-
-
-
-
-
-@app.route("/delete_friendship/<aFbid>/<bFbid>", methods = ['DELETE'])
-def delete_friendship(aFbid, bFbid):
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "delete_friendship")
-    #-----------------------------------
-
-    try:
-        userA = User.query.filter_by(fbid = aFbid).first()
-        if not userA:
-            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
-                ServerException.ER_BAD_USER)
-        userB = User.query.filter_by(fbid = bFbid).first()
-        if not userB:
-            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
-                ServerException.ER_BAD_USER)
-
-        if userB in userA.friends:
-            userA.friends.remove(userB)
-        if userA in userB.friends:
-            userB.friends.remove(userA)
-        db.session.commit()
-        return format_response(SuccessMessages.FRIENDSHIP_DELETED)
-    except ServerException as e:
-        return format_response(None, e)
-

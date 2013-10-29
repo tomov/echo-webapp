@@ -1,25 +1,22 @@
 # -*- coding: utf-8 -*-
 
+from flask import request, Blueprint
 import json
-from flask import request
+from sqlalchemy import or_, and_, desc
+from sets import Set
 
-from application import app
-from model import db, Quote
+from model import db, User, Quote, Echo, Favorite, Comment
+from auth import *
+from util import *
+from constants import *
+from notif_api import add_notification
 
+quote_api = Blueprint('quote_api', __name__)
 
-@app.route("/add_quote", methods = ['POST'])
-def add_quote():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "add_quote")
-    #-----------------------------------
-
+@quote_api.route("/add_quote", methods = ['POST'])
+@authenticate
+@track
+def add_quote(user_id):
     qdata = json.loads(request.values.get('data'))
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
@@ -85,19 +82,10 @@ def quote_dict_from_obj(quote):
     quote_res['fav_count'] = len(quote.favs)
     return quote_res
 
-@app.route("/get_quote", methods = ['get'])
-def get_quote():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "get_quote")
-    #-----------------------------------
-
+@quote_api.route("/get_quote", methods = ['get'])
+@authenticate
+@track
+def get_quote(user_id):
     echoId = request.args.get('order_id')
 
     try:
@@ -147,19 +135,10 @@ def get_quote():
         return format_response(None, e);
 
 # TODO maybe deprecate get_quotes_with_ids? this is basically the same thing
-@app.route('/check_deleted_quotes', methods = ['post'])
-def check_deleted_quotes():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "check_deleted_quotes")
-    #-----------------------------------
-
+@quote_api.route('/check_deleted_quotes', methods = ['post'])
+@authenticate
+@track
+def check_deleted_quotes(user_id):
     order_ids = json.loads(request.values.get('data'))
 
     result = []
@@ -172,19 +151,10 @@ def check_deleted_quotes():
 
     return format_response(result)
 
-@app.route('/get_quotes_with_ids', methods = ['post'])
-def get_quotes_with_ids():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "get_quotes_with_ids")
-    #-----------------------------------
-
+@quote_api.route('/get_quotes_with_ids', methods = ['post'])
+@authenticate
+@track
+def get_quotes_with_ids(user_id):
     ids = json.loads(request.values.get('data'))
 
     result = []
@@ -198,20 +168,10 @@ def get_quotes_with_ids():
     return format_response(result)
 
 
-@app.route("/get_quotes", methods = ['get'])
-def get_quotes():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    user_id = 0
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "get_quotes")
-    #-----------------------------------
-
+@quote_api.route("/get_quotes", methods = ['get'])
+@authenticate
+@track
+def get_quotes(user_id):
     #fbid = request.args.get('fbid') # TODO: remove this
     oldest = request.args.get('oldest')
     latest = request.args.get('latest')
@@ -323,20 +283,10 @@ def get_quotes():
 
 
 
-@app.route("/delete_quote/<quoteId>", methods = ['DELETE'])
-def delete_quote(quoteId):
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "delete_quote")
-    #-----------------------------------
-
+@quote_api.route("/delete_quote/<quoteId>", methods = ['DELETE'])
+@authenticate
+@track
+def delete_quote(quoteId, user_id = None):
     try:
         user = User.query.filter_by(id = user_id).first()
         if not user:
@@ -355,34 +305,3 @@ def delete_quote(quoteId):
     except ServerException as e:
         return format_response(None, e)
 
-
-@app.route("/delete_echo/<quoteId>", methods = ['DELETE'])
-def delete_echo(quoteId):
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "delete_echo")
-    #-----------------------------------
-
-    try:
-        user = User.query.filter_by(id = user_id).first()
-        if not user:
-            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
-                ServerException.ER_BAD_USER)
-
-        quote = Quote.query.filter_by(id = quoteId).first()
-        if not quote or quote.deleted:
-            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
-                ServerException.ER_BAD_QUOTE)
-
-        if user in quote.echoers and user.id != quote.reporter.id and user.id != quote.source.id:
-            quote.echoers.remove(user)
-            db.session.commit()
-        return format_response(SuccessMessages.ECHO_DELETED)
-    except ServerException as e:
-        return format_response(None, e)

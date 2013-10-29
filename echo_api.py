@@ -1,24 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask import request
+from flask import request, Blueprint
 
-from application import app
-from model import db, Echo
+from model import db, User, Quote, Echo
+from auth import *
+from util import *
+from constants import *
+from notif_api import add_notification
 
-@app.route("/get_echoers", methods = ['get'])
-def get_echoers():
+echo_api = Blueprint('echo_api', __name__)
 
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "get_echoers")
-    #-----------------------------------
-
+@echo_api.route("/get_echoers", methods = ['get'])
+@authenticate
+@track
+def get_echoers(user_id):
     quoteId = request.args.get('quoteId')
 
     try:
@@ -43,19 +39,10 @@ def get_echoers():
         return format_response(None, e);
 
 
-@app.route("/add_echo", methods = ['POST'])
-def add_echo():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "add_echo")
-    #-----------------------------------
-
+@echo_api.route("/add_echo", methods = ['POST'])
+@authenticate
+@track
+def add_echo(user_id):
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
 
@@ -79,3 +66,25 @@ def add_echo():
     except ServerException as e:
         return format_response(None, e)
 
+
+@echo_api.route("/delete_echo/<quoteId>", methods = ['DELETE'])
+@authenticate
+@track
+def delete_echo(quoteId, user_id = None):
+    try:
+        user = User.query.filter_by(id = user_id).first()
+        if not user:
+            raise ServerException(ErrorMessages.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        quote = Quote.query.filter_by(id = quoteId).first()
+        if not quote or quote.deleted:
+            raise ServerException(ErrorMessages.QUOTE_NOT_FOUND, \
+                ServerException.ER_BAD_QUOTE)
+
+        if user in quote.echoers and user.id != quote.reporter.id and user.id != quote.source.id:
+            quote.echoers.remove(user)
+            db.session.commit()
+        return format_response(SuccessMessages.ECHO_DELETED)
+    except ServerException as e:
+        return format_response(None, e)

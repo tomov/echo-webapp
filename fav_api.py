@@ -1,25 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask import request
+from flask import request, Blueprint
 
-from application import app
-from model import db, Favorite
+from model import db, User, Quote, Favorite
+from auth import *
+from util import *
+from constants import *
+from notif_api import add_notification
 
+fav_api = Blueprint('fav_api', __name__)
 
-@app.route("/delete_fav/<quoteId>", methods = ['DELETE'])
-def delete_fav(quoteId):
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "remove_fav")
-    #-----------------------------------
-
+@fav_api.route("/delete_fav/<quoteId>", methods = ['DELETE'])
+@authenticate
+@track
+def delete_fav(quoteId, user_id = None):
     try:
         user = User.query.filter_by(id = user_id).first()
         if not user:
@@ -45,19 +40,10 @@ def delete_fav(quoteId):
         return format_response(None, e)
 
 
-@app.route("/get_favs", methods = ['get'])
-def get_favs():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        auth = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(auth, "get_favs")
-    #-----------------------------------
-
+@fav_api.route("/get_favs", methods = ['get'])
+@authenticate
+@track
+def get_favs(user_id):
     quoteId = request.args.get('quoteId')
 
     try:
@@ -81,19 +67,10 @@ def get_favs():
         return format_response(None, e);
 
 
-@app.route("/add_fav", methods = ['POST'])
-def add_fav():
-
-    # !AUTH -- TODO: put in method -- decorator
-    #----------------------------------
-    token = request.args.get('token')
-    try:
-        user_id = authorize_user(token)
-    except AuthException as e:
-        return format_response(None, e)
-    track_event(user_id, "add_fav")
-    #-----------------------------------
-
+@fav_api.route("/add_fav", methods = ['POST'])
+@authenticate
+@track
+def add_fav(user_id):
     qdata = json.loads(request.values.get('data'))
     quoteId = qdata['quoteId']
 
