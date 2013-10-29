@@ -138,13 +138,41 @@ class TestNotifAPI(TestBase, NotifAPIHelpers, MockUserData, MockQuoteData, MockC
         notif = Notification.query.filter(Notification.recipients.any(User.id==reporter.id)).order_by(desc(Notification.id)).first()
         self.assert_is_same_notif(notif, {'user_id': rando.id, 'type': 'fav', 'quote_id': 1, 'echo_id': 1}) # and for reporter
 
-    def BROKEN_test_add_notification_unicode(self):
-        #self.add_user(self.user_unicode_simple)
-        #self.add_quote(self.quote_unicode) # unicode user is source
+    def test_add_notification_unicode(self):
+        self.add_user(self.user_unicode_simple)
 
-        #self.add_quote(self.quote_unicode_flipped) # unicode user is reporter
-        # TODO broken
-        pass
+        # unicode user is source (and will be displayed in notification)
+        self.add_quote(self.quote_unicode)
+
+        reporter = User.query.filter_by(fbid=self.quote_unicode["reporterFbid"]).first()
+        source = User.query.filter_by(fbid=self.quote_unicode["sourceFbid"]).first()
+        self.assertEqual(Notification.query.filter_by(user_id=reporter.id).count(), 1) # reporter sent the notification
+
+        notif = Notification.query.filter(Notification.recipients.any(User.id==source.id)).order_by(desc(Notification.id)).first()
+        self.assertIsNotNone(notif) # source got the notif
+        self.assert_is_same_notif(notif, {'user_id': reporter.id, 'type': 'quote', 'quote_id': 1, 'echo_id': 1}) # and it's correct
+
+        # someone favorites it --> quote text is in notification text
+        self.add_fav("1", self.user_simple['id'])
+        reporter = User.query.filter_by(fbid=self.quote_unicode["reporterFbid"]).first()
+        source = User.query.filter_by(fbid=self.quote_unicode["sourceFbid"]).first()
+        rando = User.query.filter_by(fbid=self.user_simple['id']).first()
+        self.assertEqual(Notification.query.filter(Notification.recipients.any(User.id==source.id), Notification.type=='fav').count(), 0) # source dit NOT get notified b/c he's not friends with the favver -- note that this functionality is independent from utf8 but we're not testing it separately b/c it might change
+        self.assertEqual(Notification.query.filter(Notification.recipients.any(User.id==reporter.id), Notification.type=='fav').count(), 1) # so did reporter
+
+        notif = Notification.query.filter(Notification.recipients.any(User.id==reporter.id)).order_by(desc(Notification.id)).first()
+        self.assert_is_same_notif(notif, {'user_id': rando.id, 'type': 'fav', 'quote_id': 1, 'echo_id': 1}) # notif is correct for reporter
+
+        # unicode user is reporter
+        self.add_quote(self.quote_unicode_flipped) # unicode user is reporter
+
+        reporter = User.query.filter_by(fbid=self.quote_unicode_flipped["reporterFbid"]).first()
+        source = User.query.filter_by(fbid=self.quote_unicode_flipped["sourceFbid"]).first()
+        self.assertEqual(Notification.query.filter_by(user_id=reporter.id).count(), 1) # reporter sent the notification
+
+        notif = Notification.query.filter(Notification.recipients.any(User.id==source.id)).order_by(desc(Notification.id)).first()
+        self.assertIsNotNone(notif) # source got the notif
+        self.assert_is_same_notif(notif, {'user_id': reporter.id, 'type': 'quote', 'quote_id': 2, 'echo_id': 2}) # and it's correct
 
     def test_get_notifications(self):
         self.add_user(self.user_passive_spectator_with_friends)
@@ -278,7 +306,6 @@ class TestNotifAPI(TestBase, NotifAPIHelpers, MockUserData, MockQuoteData, MockC
         db.session.commit()
         notifprefs = self.get_notifprefs(self.user_simple['id'])
         self.assertEqual(notifprefs, {'quotes': 0, 'favs': 0, 'comments': 0, 'echoes': 0})
-
 
 if __name__ == '__main__':
     unittest.main()

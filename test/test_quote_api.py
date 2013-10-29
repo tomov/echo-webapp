@@ -120,12 +120,14 @@ class TestQuoteAPI(TestBase, QuoteAPIHelpers, MockUserData, MockQuoteData):
         quote = Quote.query.all()[1]
         self.assert_is_same_quote_simple(quote, self.quote_normal) # quote is fine
 
-    def BROKEN_test_add_quote_unicode(self):
+
+    def test_add_quote_unicode(self):
         # TODO broken
         self.add_quote(self.quote_unicode)
         self.assertEqual(Quote.query.count(), 1) # quote added
 
         quote = Quote.query.first()
+        print quote.content
         self.assert_is_same_quote_simple(quote, self.quote_unicode) # quote is fine
 
     def test_add_quote_invalid(self):

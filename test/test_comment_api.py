@@ -50,8 +50,7 @@ class TestCommentAPI(TestBase, CommentAPIHelpers, MockUserData, MockQuoteData, M
         self.assertEqual(Comment.query.filter_by(quote_id=2).count(), 1) # added to second quote
         self.assert_is_same_comment(quote.comments[0], self.comment_for_quote_two) # and is fine
 
-    def BROKEN_test_add_comment_unicode(self):
-        # TODO broken
+    def test_add_comment_unicode(self):
         self.add_comment(self.comment_unicode)
         self.assertEqual(Comment.query.count(), 1) # comment added
 

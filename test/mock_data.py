@@ -24,6 +24,15 @@ class MockUserData():
         "unfriends": []
     }
 
+    user_unicode_simple = {
+        "id": "100006688621903",
+        "email": "mknoabj_mcdonaldsen_1378106135@tfbnw.net",
+        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc7/370214_100000486204833_1328204472_qq123.jpg",
+        "name": "Дейв МакДоналдсън",
+        "friends": [],
+        "unfriends": []
+    }
+
     user_with_friends = {
         "id": "100006546972451",
         "email": "gwncgzh_greenestein_1378106136@tfbnw.net",
@@ -36,6 +45,15 @@ class MockUserData():
                 "picture": { 
                     "data": {
                         "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/203434_703951380_2070708925_q.jpg"
+                    }
+                }, 
+            },
+            {
+                "id": user_unicode_simple['id'],
+                "name": user_unicode_simple['name'],
+                "picture": { 
+                    "data": {
+                        "url":"https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/2032342342342342342345_q.jpg"
                     }
                 }, 
             },
@@ -61,7 +79,7 @@ class MockUserData():
         "unfriends": []
     }
 
-    # see HARDCODED below if you change this guy
+    # see HARDCODED if you change this guy
     user_with_friends_update = {
         "id": user_with_friends['id'],
         "email": "new_email@gmail.com",
@@ -88,15 +106,6 @@ class MockUserData():
             }
         ],
         "unfriends": [user_with_friends['friends'][1]['id'], user_with_friends['friends'][2]['id'], "invalid"]
-    }
-
-    user_unicode_simple = {
-        "id": "100006688621903",
-        "email": "mknoabj_mcdonaldsen_1378106135@tfbnw.net",
-        "picture_url": "https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc7/370214_100000486204833_1328204472_qq123.jpg",
-        "name": "Дейв МакДоналдсън",
-        "friends": [],
-        "unfriends": []
     }
 
     user_invalid_fbid = {
@@ -145,6 +154,7 @@ class MockUserData():
         "unfriends": []
     }
 
+    # fetch test user access tokens from facebook
     @staticmethod
     def static__init__():
         response = requests.get(FacebookConstants.GET_TEST_USERS_URI)

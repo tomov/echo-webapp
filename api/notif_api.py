@@ -42,7 +42,7 @@ def add_notification(user, quote, type, recipient_id):
 def notification_to_text(notification):
     user = notification.user
     quote = notification.quote
-    content = quote.content
+    content = quote.content.encode('utf8')
     first_name = user.first_name.encode('utf8')
     last_name = user.last_name.encode('utf8')
     if content[-1:].isalpha() or content[-1:].isdigit():

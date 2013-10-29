@@ -14,7 +14,7 @@ from util import *
 from mock_data import *
 
 # DO NOT TOUCH THIS!!!!! If you do, you might fuck up the real db, and Momchil will personally come find you and behead you in your sleep
-TEST_DATABASE_NAME = 'echo_webapp_test'
+TEST_DATABASE_NAME = 'echo_webapp_test' # DO NOT FUCK THIS UP! or you'll erase the real db....
 TEST_DATABASE_URI = DatabaseConstants.DATABASE_LOCAL_URI_TEMPLATE % TEST_DATABASE_NAME # DO NOT FUCK THIS UP! or you'll erase the real db....
 
 #: these lines will be used throughout for debugging purposes
