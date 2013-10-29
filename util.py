@@ -8,7 +8,7 @@ def split_name(name):
         return "", ""
     if len(names) == 1:
         return names[0], ""
-    return names[0], names[len(names) - 1]
+    return names[0], " ".join(names[1:])
 
 def datetime_to_timestamp(date):
     return time.mktime(date.timetuple())
@@ -22,4 +22,3 @@ def dict_to_unicode_dict(data):
         return type(data)(map(dict_to_unicode_dict, data))
     else:
         return data
-

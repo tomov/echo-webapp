@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+from test_util_funcs import *
 from test_user_api import *
 from test_quote_api import *
 from test_comment_api import *
@@ -11,6 +12,7 @@ from test_misc_api import *
 
 def suite():
 	test_suite = unittest.TestSuite()
+	test_suite.addTest(unittest.makeSuite(TestUtilFuncs))
 	test_suite.addTest(unittest.makeSuite(TestUserAPI))
 	test_suite.addTest(unittest.makeSuite(TestQuoteAPI))
 	test_suite.addTest(unittest.makeSuite(TestCommentAPI))
