@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import json
-from flask import request, Blueprint
-
-from model import db, User, Feedback
-from auth import *
-from util import *
-from auth import *
-from constants import *
+from api_imports import *
+from model import Feedback
 
 misc_api = Blueprint('misc_api', __name__)
 

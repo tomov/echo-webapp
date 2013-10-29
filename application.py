@@ -1,40 +1,22 @@
 # -*- coding: utf-8 -*-
 
 import os
-from flask import Flask, request, render_template
-import json
-from sqlalchemy import or_, and_
-import time
-from sqlalchemy import desc
-from pprint import pprint
-from sets import Set
-import datetime
+from flask import Flask
 
 # api
-from user_api import user_api
-from quote_api import quote_api
-from comment_api import comment_api
-from fav_api import fav_api
-from echo_api import echo_api
-from notif_api import notif_api
-from misc_api import misc_api
+from api.user_api import user_api
+from api.quote_api import quote_api
+from api.comment_api import comment_api
+from api.fav_api import fav_api
+from api.echo_api import echo_api
+from api.notif_api import notif_api
+from api.misc_api import misc_api
 
 # db model
-import model
-from model import db
-from model import User, Quote, Comment, Favorite, Echo, Feedback, Access_Token, Notification, NotifPrefs, APIEvent
-from model import create_db
+from model import db, create_db
 
-# misc
+# constants
 from constants import *
-from util import *
-
-# for push notifications
-from apns import APNs, Payload
-
-#----------------------------------------
-# Decorator
-#----------------------------------------
 
 #----------------------------------------
 # initialization
@@ -58,7 +40,6 @@ app.config.update(
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConstants.DATABASE_URI 
 db.init_app(app)
-
 
 #----------------------------------------
 # controllers

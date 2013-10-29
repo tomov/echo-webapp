@@ -12,14 +12,3 @@ def split_name(name):
 def datetime_to_timestamp(date):
     return time.mktime(date.timetuple())
 
-
-def format_response(ret=None, error=None):
-    if ret is None:
-        ret = {}
-    elif isinstance(ret, basestring):
-        ret = {'message' : ret}
-    if error:
-        #assert isinstance(error, ServerException)
-        ret['error'] = error.to_dict() 
-    return json.dumps(ret)
-

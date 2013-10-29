@@ -1,4 +1,5 @@
 # taken from https://github.com/simonwhitaker/PyAPNs
+# just sends a test notification to rishi to make sure it works (sorry rishi)
 
 from apns import APNs, Payload
 

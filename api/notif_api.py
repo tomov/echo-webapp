@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import json
-from flask import request, Blueprint
+from api_imports import *
 from sqlalchemy import desc
-
-from model import db, User, Echo, Notification, NotifPrefs
-from auth import *
-from util import *
-from constants import *
+from apns import APNs, Payload
+from model import Echo, Notification, NotifPrefs
 
 notif_api = Blueprint('notif_api', __name__)
 
@@ -195,19 +191,6 @@ def set_notifprefs(user_id):
     except ServerException as e:
         return format_response(None, e)
 
-
-@notif_api.route("/test_notif")
-def test_notif():
-    # Send a notification
-    #token_hex1 = '04c11da985c7e9a615ddc039ce654b76e096db088602e71f8bbfc9fb6d59a91e' # rishi's phone
-    #token_hex1 = '884a19da5dc0a72d8aecb5ad6fe7ee2e49e9d8aacd618aedb785f067cb114de1' # rishi's phone 2
-    #token_hex1 = 'a40a3af5b674bc891614ecaf7a4d528150264e90a2dc1b16756148e14d41be64' # jacob's
-    #token_hex1 = '5093a4269fb4065bd70b6e23aed3f40b8978e1335cd0b889c9ed99c6c2d30631' # chris
-    #token_hex1 = 'a6f283a5eff9cd231efb1980558795a0443833d5d6470b61e972c8f786b9ae3f' # juan
-    token_hex1 = 'a951d8aba5ec3532edc6426583681e3749e2b71c9e1724219897382efd8154b0' # momchil
-    #payload = Payload(alert="Someone quoted you!", sound="default", badge=1)
-    send_notification(token_hex1, "this is a test notification")
-    return "YES"
 
 def send_notification(token_hex, text):
     apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')

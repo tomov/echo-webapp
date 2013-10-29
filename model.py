@@ -7,9 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import UniqueConstraint
 
-
 db = SQLAlchemy()
-
 
 
 # copied from http://stackoverflow.com/questions/9116924/how-can-i-achieve-a-self-referencing-many-to-many-relationship-on-the-sqlalchemy
@@ -24,7 +22,6 @@ notifications_recipients = db.Table(
     db.Column('notification_id', db.Integer, db.ForeignKey('notifications.id')), 
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'))
 )
-
 
 
 class User(db.Model):
@@ -284,7 +281,6 @@ class APIEvent(db.Model):
 
     def __repr__(self):
         return '<APIEvent %r by %s>' % (self.name, self.user_id)
-
 
 
 # call this somewhere in application.py/home, run and open home page

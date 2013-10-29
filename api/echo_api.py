@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import json
-from flask import request, Blueprint
-
-from model import db, User, Quote, Echo
-from auth import *
-from util import *
-from constants import *
+from api_imports import *
+from model import Echo
 from notif_api import add_notification
 
 echo_api = Blueprint('echo_api', __name__)

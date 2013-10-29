@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import json
-from flask import request, Blueprint
-
-from model import db, User, Quote, Favorite
-from auth import *
-from util import *
-from constants import *
+from api_imports import *
+from model import Favorite
 from notif_api import add_notification
 
 fav_api = Blueprint('fav_api', __name__)

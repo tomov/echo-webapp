@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import json
-from flask import request, Blueprint
-
-from model import db, User, Quote, Comment
-from auth import *
-from util import *
-from constants import *
+from api_imports import *
+from model import Comment
 from notif_api import add_notification
 
 comment_api = Blueprint('comment_api', __name__)

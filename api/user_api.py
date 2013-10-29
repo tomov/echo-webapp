@@ -1,17 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from flask import request, Blueprint
-import json
-
-# for auth
+from api_imports import *
 import random
 import urllib
 import urllib2
-
-from model import db, User
-from util import *
-from auth import *
-from constants import *
 
 user_api = Blueprint('user_api', __name__)
 

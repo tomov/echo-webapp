@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from flask import request, Blueprint
-import json
+from api_imports import *
 from sqlalchemy import or_, and_, desc
 from sets import Set
 
-from model import db, User, Quote, Echo, Favorite, Comment
-from auth import *
-from util import *
-from constants import *
+from model import Echo, Favorite, Comment
 from notif_api import add_notification
 
 quote_api = Blueprint('quote_api', __name__)
