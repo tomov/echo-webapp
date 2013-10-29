@@ -11,6 +11,7 @@ class ServerException(Exception):
     ER_BAD_COMMENT = 4
     ER_BAD_PARAMS  = 5
     ER_BAD_ECHO    = 6
+    ER_BAD_TOKEN   = 7
 
     def __init__(self, message, n=ER_UNKNOWN):
         self.message = message

@@ -87,34 +87,6 @@ def validate(method, user_id, token):
     return is_valid
 
 
-@user_api.route("/register_token", methods = ['POST'])
-@authenticate
-@track
-def register_token(user_id):
-    qdata = json.loads(request.values.get('data'))
-    userDeviceToken = qdata['token']
-
-    print userDeviceToken
-
-    try:
-        user = User.query.filter(User.id == user_id).first()
-        if not user:
-            raise ServerException(ErrorMessage.USER_NOT_FOUND, \
-                ServerException.ER_BAD_USER)
-
-        if userDeviceToken:
-            user.device_token = userDeviceToken
-        else:
-            user.device_token = None
-
-        db.session.commit()
-        return format_response(SuccessMessages.TOKEN_REGISTERED)
-
-    except ServerException as e:
-        return format_response(None, e)
-
-
-
 ## .. end AUTH crap
 
 
@@ -189,3 +161,35 @@ def remove_friends(user, unfriends_raw):
             user.friends.remove(friend)
         if user in friend.friends:
             friend.friends.remove(user)
+
+
+# by the way, this naming convention is simply atrocious...
+# this is for registering DEVICE tokens, not USER ACCESS tokens (which in turn are completely different from their Facebook access tokens btw...)
+@user_api.route("/register_token", methods = ['POST'])
+@authenticate
+@track
+def register_device_token(user_id):
+    qdata = json.loads(request.values.get('data'))
+    userDeviceToken = qdata['token']
+
+    try:
+        user = User.query.filter(User.id == user_id).first()
+        if not user:
+            raise ServerException(ErrorMessage.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        user_with_same_token = User.query.filter_by(device_token=userDeviceToken).first()
+        if user_with_same_token and user_with_same_token.id != user.id:
+            raise ServerException(ErrorMessages.DEVICE_TOKEN_EXISTS, \
+                ServerException.ER_BAD_TOKEN)
+
+        if userDeviceToken:
+            user.device_token = userDeviceToken
+        else:
+            user.device_token = None
+
+        db.session.commit()
+        return format_response(SuccessMessages.TOKEN_REGISTERED)
+
+    except ServerException as e:
+        return format_response(None, e)

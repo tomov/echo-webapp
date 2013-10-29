@@ -17,6 +17,12 @@ class UserAPIHelpers():
         token = self.get_token_for_user_with_fbid(user_dict['id'])
         self.app.post('/add_user?token=%s' % token, data=dict(data=json.dumps(user_dict)))
 
+    def register_device_token(self, token_dict, user_fbid):
+        # TODO(mom) this nomenclature makes my eyes bleed... why do we call both user tokens and device tokens with the same name?
+        # we should resolve it somehow, because this is ridiculous... just look at the POST url below
+        token = self.get_token_for_user_with_fbid(user_fbid)
+        self.app.post('/register_token?token=%s' % token, data=dict(data=json.dumps(token_dict)))
+
 
 class QuoteAPIHelpers(UserAPIHelpers):
 

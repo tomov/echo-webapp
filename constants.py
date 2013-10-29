@@ -33,6 +33,7 @@ class ErrorMessages:
     ECHO_EXISTENTIAL_CRISIS = "This echo does not exist"
     FAV_EXISTENTIAL_CRISIS = "This favorite doesn't exist"
     ECHO_NOT_FOUND = "Echo does not exist"
+    DEVICE_TOKEN_EXISTS = "This device token is already registered for some other user"
 
 class SuccessMessages:
     FRIENDSHIP_ADDED = "Users friended successfully!";

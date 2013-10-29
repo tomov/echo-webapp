@@ -111,6 +111,33 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
         user = User.query.first()
         self.assert_is_same_user_simple(user, self.user_unicode_simple)
 
+    def test_register_token_simple(self):
+        self.add_user(self.user_simple)
+        device_token = 'some_random_device_token'
+
+        # register token
+        self.register_device_token({'token': device_token}, self.user_simple['id'])
+        user = User.query.first()
+        self.assertEqual(user.device_token, device_token) # token updated successfully
+
+        # unregister token
+        self.register_device_token({'token': None}, self.user_simple['id'])
+        user = User.query.first()
+        self.assertIsNone(user.device_token) # token deleted successfully
+
+    def test_register_token_duplicate(self):
+        self.add_user(self.user_simple)
+        self.add_user(self.user_with_friends)
+        device_token = 'some_random_device_token'
+        self.register_device_token({'token': device_token}, self.user_simple['id'])
+        self.register_device_token({'token': device_token}, self.user_with_friends['id'])
+
+        user = User.query.filter_by(fbid=self.user_simple['id']).first()
+        self.assertEqual(user.device_token, device_token) # token updated successfully for first user
+
+        user = User.query.filter_by(fbid=self.user_with_friends['id']).first()
+        self.assertIsNone(user.device_token) # but not for second user
+
 
 if __name__ == '__main__':
     unittest.main()
