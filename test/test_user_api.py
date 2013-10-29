@@ -6,6 +6,7 @@ import api_helpers
 from api_helpers import *
 import mock_data
 from mock_data import *
+from util import *
 
 class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
 
@@ -29,16 +30,21 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
         all_friends_dicts = []
         for friend in user.all_friends:
             friend_dict = {
-                "id": friend.fbid,
-                "name": friend.first_name + " " + friend.last_name,
-                "picture": {
-                    "data": {
-                        "url": friend.picture_url
+                u"id": friend.fbid,
+                u"name": friend.first_name + " " + friend.last_name,
+                u"picture": {
+                    u"data": {
+                        u"url": friend.picture_url
                     }
                 }
             }
             all_friends_dicts.append(friend_dict)
-        self.assertItemsEqual(all_friends_dicts, user_dict['friends'])
+        # convert to unicode -- makes comparison easier
+        user_dict_friends_unicode = []
+        for i in range(len(user_dict['friends'])):
+            unidict = dict_to_unicode_dict(user_dict['friends'][i])
+            user_dict_friends_unicode.append(unidict)
+        self.assertItemsEqual(all_friends_dicts, user_dict_friends_unicode)
 
     # make sure every friend of user also has user as a friend
     def assert_friends_reciprocity(self, user):

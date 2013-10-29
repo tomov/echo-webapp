@@ -105,7 +105,7 @@ class MockUserData():
                 }, 
             }
         ],
-        "unfriends": [user_with_friends['friends'][1]['id'], user_with_friends['friends'][2]['id'], "invalid"]
+        "unfriends": [user_with_friends['friends'][1]['id'], user_with_friends['friends'][2]['id'], user_with_friends['friends'][3]['id'], "invalid"]
     }
 
     user_invalid_fbid = {
