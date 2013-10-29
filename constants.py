@@ -10,6 +10,14 @@ class DatetimeConstants:
 class APIConstants:
     DEFAULT_GET_QUOTES_LIMIT = 30
 
+# you take these from here: https://developers.facebook.com/apps/193862260739040/summary
+# and the token you get from here (replace ID and SECRET accordingly): https://graph.facebook.com/oauth/access_token?%20client_id=193862260739040&client_secret=c1738548c8dd39f385d778d2d4baa296&grant_type=client_credentials
+class FacebookConstants:
+    APP_ID = '193862260739040'
+    APP_SECRET = 'c1738548c8dd39f385d778d2d4baa296'
+    APP_TOKEN = "193862260739040|KCleMZh3OwN2tm4xrdr69yT91Ws"
+    GET_TEST_USERS_URI = "https://graph.facebook.com/%s/accounts/test-users?access_token=%s" % (APP_ID, APP_TOKEN)
+
 class ErrorMessages:
     USER_IS_ALREADY_REGISTERED = "User has already registered"
     USER_NOT_REGISTERED = "User has been added by a friend but is not yet registered"

@@ -11,6 +11,7 @@ from model import db
 from model import User, Quote
 from constants import *
 from util import *
+from mock_data import *
 
 # DO NOT TOUCH THIS!!!!! If you do, you might fuck up the real db, and Momchil will personally come find you and behead you in your sleep
 TEST_DATABASE_NAME = 'echo_webapp_test'
@@ -28,6 +29,8 @@ class TestBase(unittest.TestCase):
         db.app = application.app
         self.app = application.app.test_client()
         db.create_all() #: initialize all tables
+
+        MockUserData.static__init__() # initialize mock user data
 
     def tearDown(self): #: called after the test is run (close shit)
         db.session.remove() # REALLY IMPORTANT to do this before the one below, otherwise can't run more than one test

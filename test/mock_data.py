@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 
+import json
+import requests
+from constants import *
+
 class MockUserData():
 
-    # these should be periodically updated from 
-    # https://developers.facebook.com/apps/193862260739040/roles?role=test%20users
+    # make sure to call static__init__() to populate the tokens... because python is too cool for static constructors
+    # you can also manage test users from here: https://developers.facebook.com/apps/193862260739040/roles?ref=nav
     fbids_tokens = {
-        "100006678452194": "CAACwURMvyZBABAPmTBCNoiKs5IQzLeLGpJG9Ws99KGgd2sZBXF8zKr2jpQ2bT5MD8D9CXEZBmApsG6Wahm86dtHiig5AVOwnNwUItm6q2IPZAIhQHnESbTz5gdFnbgpBJ94YUVBRy8Vaq7KP5UuZCHguKgJ8MAJQb0i9wS1GNbwLApN4T5S7bIEsuhbjpKuwZD",
-        "100006629105407": "CAACwURMvyZBABACeMgcSD2JGU2m53h4CxtDYRSBMd2JZAXORdKCnoFwDqGpCnYkeqNMjmMtMaqqHMN8HgEloMguMUqLZAjD9jYXBbLmvx7CwzjxaIukrgTEQikRv41wWhA11Mf6b44RL8NCx6m4BbQRgDizZB6TYnH5yyYOc5FMgnZCJeclYhVd726wiwubgZD",
-        "100006546972451": "CAACwURMvyZBABAA4JdTD7ZBzgq6kJfvocwgJpWEMGBfyd6ZAQSa6ZAGaPMg5qjnCH8px9lFxcuYEZAGJCNDp4lfrxlSQQf6mAIGBqWDWIenLZBtUFSW1HYucVdCqky1pZChYoKkcJmrD08hb1IJ1ID8Imf39N1HSKw1equzhGSIyj38gymrEA7n4tDxJ0n0T0kZD",
-        "100006688621903": "CAACwURMvyZBABAKBBZB3QZBvZATuitQdCIp5REG0cKDELudMZAG4hsQZBLmJKXZA547zSM0IovHfHjnoyqvLFeKlAcvdMk14DyWn27CBDA8BKFnF1k7ZAV8VsaiORF8JZBG95DwPZBceKf7pylYVA4DF598Vo45j3ngfNAzcPVysNQQgogqv4mKL87U4hv92m9lVYZD",
+        "100006678452194": "",
+        "100006629105407": "",
+        "100006546972451": "",
+        "100006688621903": "",
     }
 
     user_simple = {
@@ -141,6 +145,14 @@ class MockUserData():
         "unfriends": []
     }
 
+    @staticmethod
+    def static__init__():
+        response = requests.get(FacebookConstants.GET_TEST_USERS_URI)
+        test_users = json.loads(response.text)
+        for test_user in test_users['data']:
+            if test_user['id'] in MockUserData.fbids_tokens:
+                MockUserData.fbids_tokens[test_user['id']] = test_user['access_token']
+
 
 class MockQuoteData():
 
@@ -242,4 +254,5 @@ class MockCommentData():
         "quoteId": "1",
         "comment": "Айде един и на български"
     }
+
 
