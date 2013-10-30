@@ -101,9 +101,8 @@ def add_user(user_id):
     email = udata['email']
     first_name, last_name = split_name(udata['name'])
     friends_raw = udata['friends']
-    unfriends_raw = None
-    if 'unfriends' in udata:
-        unfriends_raw = udata['unfriends']
+    unfriends_raw = udata.get('unfriends')
+    clear_friends = udata.get('refreshing_entire_friend_list')
 
     try:
         user = User.query.filter_by(fbid = fbid).first()
@@ -119,8 +118,8 @@ def add_user(user_id):
             user.picture_url = picture_url
             user.first_name = first_name.decode('utf8')
             user.last_name = last_name.decode('utf8')
-#            if unfriends_raw is None:
-#                user.friends.clear()
+            if clear_friends:
+                user.friends[:] = []
             add_friends(user, friends_raw)
             remove_friends(user, unfriends_raw)
 

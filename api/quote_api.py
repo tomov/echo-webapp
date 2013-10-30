@@ -17,18 +17,9 @@ def add_quote(user_id):
     sourceFbid = qdata['sourceFbid']
     reporterFbid = qdata['reporterFbid']
     content = qdata['quote']
-    if 'location' in qdata:
-        location = qdata['location']
-    else:
-        location = None
-    if 'location_lat' in qdata:
-        location_lat = qdata['location_lat']
-    else:
-        location_lat = None
-    if 'location_long' in qdata:
-        location_long = qdata['location_long']
-    else:
-        location_long = None
+    location = qdata.get('location')
+    location_lat = qdata.get('location_lat')
+    location_long = qdata.get('location_long')
 
     try:
         source = User.query.filter_by(fbid = sourceFbid).first()

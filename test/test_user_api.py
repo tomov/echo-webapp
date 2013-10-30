@@ -104,6 +104,12 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
                 else:
                     self.assertEqual(len(user.all_friends), 1)
 
+        user_with_friends_refresh_friendlist = self.user_with_friends
+        user_with_friends_refresh_friendlist['refreshing_entire_friend_list'] = 1
+        self.add_user(user_with_friends_refresh_friendlist)
+        user = User.query.filter_by(fbid=self.user_with_friends['id']).first()
+        self.assert_is_same_user_with_friends(user, self.user_with_friends) # friend list is refreshed entirely (i.e. back to the original one; all new friendships are forgotten)
+
     def test_add_user_unicode(self):
         self.add_user(self.user_unicode_simple)
         self.assertEqual(User.query.count(), 1) # user added
