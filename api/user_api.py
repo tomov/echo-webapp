@@ -192,3 +192,23 @@ def register_device_token(user_id):
 
     except ServerException as e:
         return format_response(None, e)
+
+@user_api.route("/logout", methods = ['POST'])
+@authenticate
+@track
+def logout(user_id):
+    try:
+        user = User.query.filter(User.id == user_id).first()
+        if not user:
+            raise ServerException(ErrorMessage.USER_NOT_FOUND, \
+                ServerException.ER_BAD_USER)
+
+        user.device_token = None
+        access_token = Access_Token.query.filter_by(user_id=user_id).first()
+        if access_token:
+            db.session.delete(access_token)
+        db.session.commit()
+        return format_response(SuccessMessages.USER_LOGGED_OUT)
+
+    except ServerException as e:
+        return format_response(None, e)

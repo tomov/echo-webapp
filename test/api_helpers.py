@@ -23,6 +23,10 @@ class UserAPIHelpers():
         token = self.get_token_for_user_with_fbid(user_fbid)
         self.app.post('/register_token?token=%s' % token, data=dict(data=json.dumps(token_dict)))
 
+    def logout(self, user_fbid):
+        token = self.get_token_for_user_with_fbid(user_fbid)
+        self.app.post('/logout?token=%s' % token, data=dict())
+
 
 class QuoteAPIHelpers(UserAPIHelpers):
 

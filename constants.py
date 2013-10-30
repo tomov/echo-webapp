@@ -51,3 +51,5 @@ class SuccessMessages:
     FEEDBACK_ADDED = "Feedback was added successfully!"
     TOKEN_REGISTERED = "Device token was registered successfully!"
     NOTIFPREFS_SET = "Notification preferences set successfully!"
+    USER_LOGGED_OUT = "User logged out successfully!"
+    GREAT_SUCCESS = "It's a great success!!"

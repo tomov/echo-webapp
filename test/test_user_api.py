@@ -6,6 +6,7 @@ import api_helpers
 from api_helpers import *
 import mock_data
 from mock_data import *
+from model import Access_Token
 from util import *
 
 class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
@@ -54,11 +55,11 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
 
     # ------------- tests -------------
 
-    def testget_token(self):
+    def test_get_access_token(self):
         token = self.get_token_for_user_with_fbid(self.user_simple['id'])
         self.assertEqual(User.query.count(), 1) # hollow profile is created
 
-    def test_get_token_invalid(self):
+    def test_get_access_token_invalid(self):
         token = self.get_token_for_user_with_fbid("invalid")
         self.assertEqual(User.query.count(), 0) # no hollow profile is created
 
@@ -117,7 +118,7 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
         user = User.query.first()
         self.assert_is_same_user_simple(user, self.user_unicode_simple)
 
-    def test_register_token_simple(self):
+    def test_register_device_token_simple(self):
         self.add_user(self.user_simple)
         device_token = 'some_random_device_token'
 
@@ -131,7 +132,7 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
         user = User.query.first()
         self.assertIsNone(user.device_token) # token deleted successfully
 
-    def test_register_token_duplicate(self):
+    def test_register_device_token_duplicate(self):
         self.add_user(self.user_simple)
         self.add_user(self.user_with_friends)
         device_token = 'some_random_device_token'
@@ -143,6 +144,25 @@ class TestUserAPI(TestBase, UserAPIHelpers, MockUserData):
 
         user = User.query.filter_by(fbid=self.user_with_friends['id']).first()
         self.assertIsNone(user.device_token) # but not for second user
+
+    def test_logout(self):
+        self.add_user(self.user_simple)
+        device_token = 'some_random_device_token'
+        self.register_device_token({'token': device_token}, self.user_simple['id'])
+
+        access_token = Access_Token.query.first()
+        self.assertIsNotNone(access_token)
+        self.assertIsNotNone(access_token.access_token) # access token is present
+        self.assertIsNot(len(access_token.access_token), 0) # and is not empty
+        user = User.query.first()
+        self.assertEqual(user.device_token, device_token) # device token is present too
+
+        self.logout(self.user_simple['id'])
+
+        access_token = Access_Token.query.first()
+        self.assertIsNone(access_token) # access token is cleared
+        user = User.query.first()
+        self.assertIsNone(user.device_token) # device token is cleared too
 
 
 if __name__ == '__main__':
