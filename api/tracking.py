@@ -9,12 +9,8 @@ def track_event(user_id, name, request_size, response_size):
     # TODO record average request and response size
     # must update db schema and reflect both locally and remotely
     print 'track: {0} calls {1}: input = {2}, output = {3}'.format(user_id, name, request_size, response_size)
-    event = APIEvent.query.filter_by(user_id=user_id, name=name).first()
-    if event:
-        event.count = event.count + 1
-    else:
-        event = APIEvent(user_id, name)
-        db.session.add(event)
+    event = APIEvent(user_id, name, request_size, response_size)
+    db.session.add(event)
     db.session.commit()
 
 

@@ -269,13 +269,15 @@ class APIEvent(db.Model):
     modified = db.Column(db.DateTime)
     name = db.Column(db.String(length = 50))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    count = db.Column(db.Integer)
+    request_size = db.Column(db.Integer)
+    response_size = db.Column(db.Integer)
     user = db.relationship("User", backref="api_events")
 
-    def __init__(self, user_id, name):
+    def __init__(self, user_id, name, request_size, response_size):
         self.user_id = user_id
         self.name = name
-        self.count = 1
+        self.request_size = request_size
+        self.response_size = response_size
         self.created = datetime.utcnow()
         self.modified = self.created
 
