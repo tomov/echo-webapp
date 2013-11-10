@@ -202,12 +202,7 @@ def get_quotes(user_id):
         ## this is so we have to deal with only one id's sequence (the one for echoes) rather than two
         ## then we manually iterate and filter by limit, upper/lower limits, etc
         ## this is the most efficient way momchil came up to do it for now
-
-        # THIS IS A TEMPORARY HACK FOR HACKPRINCETON to make this one big feed
-        if req_type == 'profile':
-            echoes = Echo.query.with_entities(Echo.id, Echo.quote_id).filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(Echo.id)
-        else:
-            echoes = Echo.query.with_entities(Echo.id, Echo.quote_id).filter(Echo.quote.has(Quote.deleted == False)).order_by(Echo.id)
+        echoes = Echo.query.with_entities(Echo.id, Echo.quote_id).filter(or_conds, Echo.quote.has(Quote.deleted == False)).order_by(Echo.id)
 
         # get bounds
         if latest and oldest:
