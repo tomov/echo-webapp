@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-
-from api_imports import *
 import random
 import urllib
 import urllib2
+
+from api_imports import *
+from notif_api import test_notif
 
 user_api = Blueprint('user_api', __name__)
 
@@ -181,6 +182,8 @@ def register_device_token(user_id):
         if user_with_same_token and user_with_same_token.id != user.id:
             raise ServerException(ErrorMessages.DEVICE_TOKEN_EXISTS, \
                 ServerException.ER_BAD_TOKEN)
+
+        test_notif('user ' + str(user.first_name) + ' with token ' + str(userDeviceToken))
 
         if userDeviceToken:
             user.device_token = userDeviceToken

@@ -1,9 +1,11 @@
 # taken from https://github.com/simonwhitaker/PyAPNs
 # just sends a test notification to rishi to make sure it works (sorry rishi)
+import sys
 
+sys.path.append('..') # hack to be able to import files from parent directory without messing with modules
 from apns import APNs, Payload
 
-apns = APNs(use_sandbox=False, cert_file='certificates/EchoAPNSProdCert.pem', key_file='certificates/newEchoAPNSProdKey.pem')
+apns = APNs(use_sandbox=False, cert_file='../certificates/EchoAPNSProdCert.pem', key_file='../certificates/newEchoAPNSProdKey.pem')
 
 # Send a notification
 #token_hex1 = '04c11da985c7e9a615ddc039ce654b76e096db088602e71f8bbfc9fb6d59a91e' # rishi's phone
