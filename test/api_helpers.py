@@ -1,4 +1,5 @@
 import sys
+import urllib
 
 sys.path.append('..') # hack to be able to import files from parent directory without messing with modules
 from model import db
@@ -156,8 +157,16 @@ class NotifAPIHelpers(QuoteAPIHelpers, CommentAPIHelpers, FavAPIHelpers, EchoAPI
         self.app.post('/set_notifprefs?token=%s' % token, data=dict(data=json.dumps(prefs_dict)))
 
 
-class MiscAPIHelpers(UserAPIHelpers):
+class MiscAPIHelpers(UserAPIHelpers, QuoteAPIHelpers):
 
     def add_feedback(self, feedback_dict, user_fbid):
         token = self.get_token_for_user_with_fbid(user_fbid)
         self.app.post('/add_feedback?token=%s' % token, data=dict(data=json.dumps(feedback_dict)))
+
+    def og_repeater(self, tags):
+        rv = self.app.get('/og_repeater?' + urllib.urlencode(tags))
+        return rv.data
+
+    def og_quote(self, ref):
+        rv = self.app.get('/og_quote?ref=' + str(ref))
+        return rv.data

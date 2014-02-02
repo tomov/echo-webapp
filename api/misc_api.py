@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from flask import render_template
 from api_imports import *
-from model import Feedback
+from model import Feedback, Echo, User
 
 misc_api = Blueprint('misc_api', __name__)
 
@@ -69,7 +70,7 @@ def og_quote():
         tags = {
             'og:type': 'echoios:quote',
             'og:title': '"%s"' % quote.content,
-            'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,
+            #'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,   -- removed because of stupid facebook putting up big pictures on people's newsfeeds
             'og:description': u'\u2014 %s %s' % (quote.source.first_name, quote.source.last_name)
         }
         return render_template('og.html', tags=tags, url=request.url) 

@@ -26,10 +26,10 @@ def add_notification(user, quote, type, recipient_id):
     notification.recipients.append(recipient)
     db.session.add(notification)
 
-    test_notif()
     # send push notification to device
     formatted_text = notification_to_text(notification)
     token_hex = recipient.device_token
+#    test_notif('token is' + str(token_hex)) # MOM remove
     if not token_hex:
         return
     #print 'send text ' + formatted_text['text']
@@ -39,10 +39,11 @@ def add_notification(user, quote, type, recipient_id):
         #raise  # TODO FIXME this is for debugging purposes only -- remove after testing!
         return
 
+# MOM remove
 @notif_api.route("/test_notif", methods = ['get'])
-def test_notif():
+def test_notif(string):
     formatted_text = dict()
-    formatted_text['text'] = 'This is a test notification -- BLAH'
+    formatted_text['text'] = string
     token_hex = "a951d8aba5ec3532edc6426583681e3749e2b71c9e1724219897382efd8154b0"
     #print 'send text ' + formatted_text['text']
     send_notification(token_hex, formatted_text['text'])
