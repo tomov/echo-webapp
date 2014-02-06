@@ -71,9 +71,9 @@ def og_quote():
         og_description = u'\u2014 %s %s' % (quote.source.first_name, quote.source.last_name)
         tags = {
             'og:type': 'echoios:quote',
-            'og:title': og_title + '%0D%0A' + og_description,
+            'og:title': og_title,
             #'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,   -- removed because of stupid facebook putting up big pictures on people's newsfeeds
-            'og:description': ''
+            'og:description': og_description
         }
         return render_template('og.html', tags=tags, url=request.url) 
     except ServerException as e:
