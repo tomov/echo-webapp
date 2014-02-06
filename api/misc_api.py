@@ -67,11 +67,13 @@ def og_quote():
             quote.created = echo.created
             quote.reporter = echo.user
 
+        og_title = '"%s"' % quote.content
+        og_description = u'\u2014 %s %s' % (quote.source.first_name, quote.source.last_name)
         tags = {
             'og:type': 'echoios:quote',
-            'og:title': '"%s"' % quote.content,
+            'og:title': og_title + '%0D%0A' + og_description,
             #'og:image': 'http://graph.facebook.com/%s/picture?width=200' % quote.source.fbid,   -- removed because of stupid facebook putting up big pictures on people's newsfeeds
-            'og:description': u'\u2014 %s %s' % (quote.source.first_name, quote.source.last_name)
+            'og:description': ''
         }
         return render_template('og.html', tags=tags, url=request.url) 
     except ServerException as e:
