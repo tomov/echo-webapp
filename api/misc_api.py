@@ -75,4 +75,5 @@ def og_quote():
         }
         return render_template('og.html', tags=tags, url=request.url) 
     except ServerException as e:
-        return format_response(None, e)
+        # still redirect, even if quote does not exist
+        return render_template('og.html', tags=dict(), url=request.url) 

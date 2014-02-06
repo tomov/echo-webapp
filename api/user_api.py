@@ -183,8 +183,6 @@ def register_device_token(user_id):
             raise ServerException(ErrorMessages.DEVICE_TOKEN_EXISTS, \
                 ServerException.ER_BAD_TOKEN)
 
-        test_notif('user ' + str(user.first_name) + ' with token ' + str(userDeviceToken))
-
         if userDeviceToken:
             user.device_token = userDeviceToken
         else:
